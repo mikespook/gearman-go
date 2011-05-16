@@ -1,62 +1,54 @@
 package gearman
 
-// #cgo LDFLAGS: -lgearman
-// #include <libgearman/gearman.h>
-import "C"
-
 import(
-    "log"
-    "unsafe"
+    "net"
+    "os"
 )
 
-type GearmanWorker struct {
-    worker C.gearman_worker_st
-}
-// Create gearman worker
-func GearmanWorkerCreate() * GearmanWorker {
+type Worker struct {
 
-    worker := new(GearmanWorker)
-    if C.gearman_worker_create(&worker.worker) == nil {
-        log.Panic("Memory allocation failure on worker creation")
-    }
+    servers []net.Conn
+}
+
+func NewWorker() (worker *Worker) {
+    worker = &Worker{servers:make([]net.Conn, 0, WORKER_SERVER_CAP)}
     return worker
 }
 
-// get error
-func (worker * GearmanWorker) Error() string {
-    return C.GoString(C.gearman_worker_error(&worker.worker))
-}
 
 // add server
-func (worker * GearmanWorker) AddServer(host string, port uint16) {
-    h := C.CString(host)
-    defer C.free(unsafe.Pointer(h))
-    if C.gearman_worker_add_server(&worker.worker, h,
-        C.in_port_t(port)) != C.GEARMAN_SUCCESS {
-        log.Panic(worker.Error())
+// worker.AddServer("127.0.0.1:4730")
+func (worker * Worker) AddServer(addr string) (err os.Error) {
+    if len(worker.servers) == cap(worker.servers) {
+        return os.NewError("There were too many servers.")
     }
+    conn, err := net.Dial(TCP, addr)
+    if err != nil {
+        return err
+    }
+    n := len(worker.servers)
+    worker.servers = worker.servers[0: n + 1]
+    worker.servers[n] = conn
+    return nil
 }
+/*
 
 // add function
-func (worker * GearmanWorker) AddFunction(funcname string, timeout uint32, f interface{}, context interface{}) {
-    fn := C.CString(funcname)
-    defer C.free(unsafe.Pointer(fn))
-    if C.gearman_worker_add_function(&worker.worker, fn, C.uint32_t(timeout), C.gearman_worker_fn(&unsafe.Pointer(&f)), unsafe.Pointer(&context)) != C.GEARMAN_SUCCESS {
-        log.Panic(worker.Error())
-    }
+func (worker * Worker) AddFunction(funcname string, 
+    f interface{}, context interface{}) (err Error) {
+
 }
 
 // work
 func (worker * GearmanWorker) Work() {
     for {
-        if C.gearman_worker_work(&worker.worker) != C.GEARMAN_SUCCESS {
-            log.Panic(worker.Error())
-        }
+        
     }
 }
 
-// free
+// Close
 // should used as defer
-func (worker * GearmanWorker) Free() {
-    C.gearman_worker_free(&worker.worker)
+func (worker * GearmanWorker) Close() (err Error){
+    
 }
+*/
