@@ -7,6 +7,8 @@ include $(GOROOT)/src/Make.inc
 TARG=gearman
 GOFILES=\
 	gearman.go\
+	job.go\
+	jobclient.go\
 	worker.go\
 #	client.go\
 
