@@ -3,7 +3,7 @@ package gearman
 import (
     "net"
     "os"
-    "log"
+//    "log"
 )
 
 type JobClient struct {
@@ -38,7 +38,7 @@ func (server *JobClient) Work() (err os.Error) {
         }
         job, err := DecodeJob(server, rel)
         if err != nil {
-            log.Println(err)
+            return err
         } else {
             server.incoming <- job
         }
@@ -48,11 +48,6 @@ func (server *JobClient) Work() (err os.Error) {
 
 func (server *JobClient) WriteJob(job * Job) (err os.Error) {
     return server.Write(job.Encode())
-}
-
-func (server *JobClient) Echo(str []byte) (err os.Error) {
-    job := NewJob(server, REQ, ECHO_REQ, []byte(str))
-    return server.Write(job.Encode());
 }
 
 func (server *JobClient) Write(buf []byte) (err os.Error) {

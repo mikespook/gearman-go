@@ -64,14 +64,27 @@ func (worker * Worker) AddFunction(funcname string,
 }
 // work
 func (worker * Worker) Work() {
+    for k, _ := range worker.functions {
+        job := NewJob(nil, REQ, CAN_DO, []byte(k))
+        worker.Write(job)
+    }
+
     for _, v := range worker.servers {
         go v.Work()
     }
     for worker.running {
         select {
             case job := <-worker.incoming:
-                if err := worker.Exec(job); err != nil {
-                    log.Panicln(err)
+                if job == nil {
+                    break
+                }
+                switch job.DataType {
+                    case ERROR:
+                        log.Panicln(string(job.Data))
+                    default:
+                        if err := worker.Exec(job); err != nil {
+                            log.Panicln(err)
+                        }
                 }
                 worker.queue <- job
         }
@@ -101,15 +114,21 @@ func (worker * Worker) Close() (err os.Error){
     return err
 }
 
-// Echo
-func (worker * Worker) Echo(data []byte) (err os.Error) {
+func (worker * Worker) Write(job *Job) (err os.Error) {
     e := make(chan os.Error)
     for _, v := range worker.servers {
         go func() {
-            e <- v.Echo(data)
+            job.client = v
+            e <- v.WriteJob(job)
         }()
     }
     return <- e
+}
+
+// Echo
+func (worker * Worker) Echo(data []byte) (err os.Error) {
+    job := NewJob(nil, REQ, ECHO_REQ, data)
+    return worker.Write(job)
 }
 
 // Exec

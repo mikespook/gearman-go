@@ -9,9 +9,13 @@ const (
     REQ = 5391697
     // \x00RES
     RES = 5391699
-    ECHO = "\x00REQ\x00\x00\x00\x10\x00\x00\x00\x00"
+    
+    CAN_DO = 1
+    CANT_DO = 2
     ECHO_REQ = 16
     ECHO_RES = 17
+    ERROR = 19
+    CAN_DO_TIMEOUT = 23
 )
 
 type Job struct {
