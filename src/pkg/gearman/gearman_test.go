@@ -15,7 +15,7 @@ func TestAddServer(t *testing.T) {
     if err := worker.AddServer("127.0.0.1:4730"); err != nil {
         t.Error(err)
     }
-    
+
     if l := len(worker.servers); l != 1 {
         t.Log(worker.servers)
         t.Error("The length of server list should be 1.")
@@ -40,6 +40,14 @@ func TestEcho(t * testing.T) {
     go worker.Work()
     if err := worker.Echo([]byte("Hello World")); err != nil {
         t.Error(err)
+    }
+}
+
+func TestResult(t *testing.T) {
+    if job := worker.Result(); job == nil {
+        t.Error("Nothing in result.")
+    } else {
+        t.Log(job)
     }
 }
 
