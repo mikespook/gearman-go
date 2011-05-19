@@ -3,7 +3,7 @@ package gearman
 import (
     "os"
     "net"
-    "log"
+//    "log"
 )
 
 type Client struct {
@@ -61,7 +61,34 @@ func (client *Client) work() {
 }
 
 func (client *Client) Do(funcname string, data []byte, flag byte) (err os.Error) {
-    return
+    var datatype uint32
+    if flag & JOB_NORMAL == JOB_NORMAL {
+        if flag & JOB_BG == JOB_BG {
+            datatype = SUBMIT_JOB_BG
+        } else {
+            datatype = SUBMIT_JOB
+        }
+    } else if flag & JOB_LOW == JOB_LOW {
+        if flag & JOB_BG == JOB_BG {
+            datatype = SUBMIT_JOB_LOW_BG
+        } else {
+            datatype = SUBMIT_JOB_LOW
+        }
+    } else if flag & JOB_HIGH == JOB_HIGH {
+        if flag & JOB_BG == JOB_BG {
+            datatype = SUBMIT_JOB_HIGH_BG
+        } else {
+            datatype = SUBMIT_JOB_HIGH
+        }
+    }
+    rel := make([]byte, 0, 1024 * 64)
+    rel = append(rel, []byte(funcname) ...)
+    rel = append(rel, '\x00')
+    rel = append(rel, '\xFF')
+    rel = append(rel, '\x00')
+    rel = append(rel, data ...)
+    job := NewClientJob(REQ, datatype, data)
+    return client.WriteJob(job)
 }
 
 func (client *Client) Echo(data []byte) (err os.Error) {
@@ -78,7 +105,7 @@ func (client *Client) LastResult() (job *ClientJob) {
             <-client.JobQueue
         }
     }
-    return <-client.JobQueue   
+    return <-client.JobQueue
 }
 
 func (client *Client) LastError() (err os.Error) {
@@ -98,7 +125,6 @@ func (client *Client) WriteJob(job *ClientJob) (err os.Error) {
 }
 
 func (client *Client) Write(buf []byte) (err os.Error) {
-    log.Println(buf)
     var n int
     for i := 0; i < len(buf); i += n {
         n, err = client.conn.Write(buf[i:])

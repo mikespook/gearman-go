@@ -78,7 +78,9 @@ func getError(data []byte) (eno os.Errno, err os.Error) {
         err = os.NewError("The input is not a error data.")
         return
     }
-    eno, err = rel[0], rel[1]
+    l := len(rel[0])
+    eno = os.Errno(byteToUint32([4]byte{rel[0][l-4], rel[0][l-3], rel[0][l-2], rel[0][l - 1]}))
+    err = os.NewError(string(rel[1]))
     return
 }
 

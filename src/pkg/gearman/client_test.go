@@ -2,7 +2,7 @@ package gearman
 
 import (
     "testing"
-    "os"
+//    "os"
 )
 
 var client *Client
@@ -20,6 +20,12 @@ func TestClientAddServer(t * testing.T) {
 
 func TestClientEcho(t * testing.T) {
     if err := client.Echo([]byte("Hello world")); err != nil {
+        t.Error(err)
+    }
+}
+
+func TestClientDo(t * testing.T) {
+    if err := client.Do("ToUpper", []byte("abcdef"), JOB_NORMAL); err != nil {
         t.Error(err)
     }
 }
