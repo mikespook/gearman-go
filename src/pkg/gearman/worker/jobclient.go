@@ -3,31 +3,30 @@ package gearman
 import (
     "net"
     "os"
-    "log"
+//    "log"
 )
 
 type jobClient struct {
     conn net.Conn
-    incoming chan *Job
+    worker *Worker
     running bool
 }
 
-func newJobClient(addr string, incoming chan *Job) (jobclient *jobClient, err os.Error) {
+func newJobClient(addr string, worker *Worker) (jobclient *jobClient, err os.Error) {
     conn, err := net.Dial(TCP, addr)
     if err != nil {
         return nil, err
     }
-    jobclient = &jobClient{conn:conn, incoming: incoming, running:true}
+    jobclient = &jobClient{conn:conn, worker:worker, running:true}
     return jobclient, err
 }
 
-func (client *jobClient) Work() (err os.Error) {
-    log.Println("Job client work().")
+func (client *jobClient) Work() {
     noop := true
-    for client.running {
+    OUT: for client.running {
         // grab job
         if noop {
-            client.WriteJob(NewJob(REQ, GRAB_JOB, nil))
+            client.WriteJob(NewWorkerJob(REQ, GRAB_JOB, nil))
         }
         var rel []byte
         for {
@@ -37,36 +36,36 @@ func (client *jobClient) Work() (err os.Error) {
                 if err == os.EOF && n == 0 {
                     break
                 }
-                return err
+                client.worker.ErrQueue <- err
+                continue OUT
             }
             rel = append(rel, buf[0: n] ...)
-            break
         }
-        job, err := DecodeJob(rel)
+        job, err := DecodeWorkerJob(rel)
         if err != nil {
-            return err
+            client.worker.ErrQueue <- err
+            continue
         } else {
             switch(job.dataType) {
                 case NOOP:
                     noop = true
                 case NO_JOB:
                     noop = false
-                    client.WriteJob(NewJob(REQ, PRE_SLEEP, nil))
+                    client.WriteJob(NewWorkerJob(REQ, PRE_SLEEP, nil))
                 case ECHO_RES, JOB_ASSIGN_UNIQ, JOB_ASSIGN:
                     job.client = client
-                    client.incoming <- job
+                    client.worker.incoming <- job
             }
         }
     }
     return
 }
 
-func (client *jobClient) WriteJob(job * Job) (err os.Error) {
+func (client *jobClient) WriteJob(job *WorkerJob) (err os.Error) {
     return client.Write(job.Encode())
 }
 
 func (client *jobClient) Write(buf []byte) (err os.Error) {
-    log.Println(buf)
     var n int
     for i := 0; i < len(buf); i += n {
         n, err = client.conn.Write(buf[i:])

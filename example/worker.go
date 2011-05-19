@@ -8,7 +8,7 @@ import (
     "strings"
 )
 
-func ToUpper(job *gearman.Job) ([]byte, os.Error) {
+func ToUpper(job *gearman.WorkerJob) ([]byte, os.Error) {
     data := []byte(strings.ToUpper(string(job.Data)))
     return data, nil
 }
@@ -28,13 +28,13 @@ func main() {
             switch str {
                 case "echo":
                     worker.Echo([]byte("Hello world!"))
-                    job := <-worker.Queue
+                    job := <-worker.JobQueue
                     log.Println(string(job.Data))
                 case "quit":
                     worker.Close()
                     return
                 case "result":
-                    job := <-worker.Queue
+                    job := <-worker.JobQueue
                     log.Println(string(job.Data))
                 default:
                     log.Println("Unknown command")

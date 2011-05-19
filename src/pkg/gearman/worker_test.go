@@ -11,7 +11,7 @@ func init() {
     worker = NewWorker()
 }
 
-func TestAddServer(t *testing.T) {
+func TestWorkerAddServer(t *testing.T) {
     t.Log("Add local server 127.0.0.1:4730.")
     if err := worker.AddServer("127.0.0.1:4730"); err != nil {
         t.Error(err)
@@ -23,12 +23,12 @@ func TestAddServer(t *testing.T) {
     }
 }
 
-func foobar(job *Job) ([]byte, os.Error) {
+func foobar(job *WorkerJob) ([]byte, os.Error) {
     return nil, nil
 }
 
 
-func TestAddFunction(t *testing.T) {
+func TestWorkerAddFunction(t *testing.T) {
     if err := worker.AddFunction("foobar", foobar, 0); err != nil {
         t.Error(err)
     }
@@ -41,14 +41,14 @@ func TestAddFunction(t *testing.T) {
     }
 }
 
-func TestEcho(t * testing.T) {
+func TestWorkerEcho(t * testing.T) {
     if err := worker.Echo([]byte("Hello World")); err != nil {
         t.Error(err)
     }
 }
 /*
-func TestResult(t *testing.T) {
-    if job := worker.Result(); job == nil {
+func TestWorkerResult(t *testing.T) {
+    if job := worker.LastResult(); job == nil {
         t.Error("Nothing in result.")
     } else {
         t.Log(job)
@@ -56,19 +56,19 @@ func TestResult(t *testing.T) {
 }
 */
 
-func TestRemoveFunction(t * testing.T) {
+func TestWorkerRemoveFunction(t * testing.T) {
     if err := worker.RemoveFunction("foobar"); err != nil {
         t.Error(err)
     }
 }
 
-func TestReset(t * testing.T) {
+func TestWorkerReset(t * testing.T) {
     if err := worker.Reset(); err != nil {
         t.Error(err)
     }
 }
 
-func TestClose(t *testing.T) {
+func TestWorkerClose(t *testing.T) {
     if err := worker.Close(); err != nil {
         t.Error(err)
     }

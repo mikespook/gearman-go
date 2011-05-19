@@ -10,7 +10,8 @@ GOFILES=\
 	worker/job.go\
 	worker/jobclient.go\
 	worker.go\
-#	client.go\
+	client/job.go\
+	client.go\
 
 CLEANFILES+=gearman_test
 

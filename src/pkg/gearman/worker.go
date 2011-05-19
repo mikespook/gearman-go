@@ -3,10 +3,10 @@ package gearman
 import(
     "os"
     "sync"
-    "log"
+//    "log"
 )
 
-type JobFunction func(job *Job) ([]byte, os.Error)
+type JobFunction func(job *WorkerJob) ([]byte, os.Error)
 type JobFunctionMap map[string]JobFunction
 
 type Worker struct {
@@ -14,9 +14,10 @@ type Worker struct {
     functions JobFunctionMap
 
     running bool
-    incoming chan *Job
+    incoming chan *WorkerJob
     mutex sync.Mutex
-    Queue chan *Job
+    JobQueue chan *WorkerJob
+    ErrQueue chan os.Error
 }
 
 func NewWorker() (worker *Worker) {
@@ -25,11 +26,12 @@ func NewWorker() (worker *Worker) {
         clients:make([]*jobClient, 0, WORKER_SERVER_CAP),
         // function list
         functions: make(JobFunctionMap),
-        incoming: make(chan *Job, 512),
-        Queue: make(chan *Job, 512),
+        incoming: make(chan *WorkerJob, QUEUE_CAP),
+        JobQueue: make(chan *WorkerJob, QUEUE_CAP),
+        ErrQueue: make(chan os.Error, QUEUE_CAP),
         running: true,
     }
-    return worker
+    return
 }
 
 // add server
@@ -43,7 +45,7 @@ func (worker * Worker) AddServer(addr string) (err os.Error) {
     }
 
     // Create a new job server's client as a agent of server
-    server, err := newJobClient(addr, worker.incoming)
+    server, err := newJobClient(addr, worker)
     if err != nil {
         return err
     }
@@ -79,7 +81,7 @@ func (worker * Worker) AddFunction(funcname string,
         t := uint32ToByte(timeout)
         data = append(data, t[:] ...)
     }
-    job := NewJob(REQ, datatype, data)
+    job := NewWorkerJob(REQ, datatype, data)
     worker.WriteJob(job)
     return
 }
@@ -93,7 +95,7 @@ func (worker * Worker) RemoveFunction(funcname string) (err os.Error) {
         return os.NewError("No function named: " + funcname)
     }
     worker.functions[funcname] = nil, false
-    job := NewJob(REQ, CANT_DO, []byte(funcname))
+    job := NewWorkerJob(REQ, CANT_DO, []byte(funcname))
     worker.WriteJob(job)
     return
 }
@@ -113,29 +115,30 @@ func (worker * Worker) Work() {
                     case NO_JOB:
                         // do nothing
                     case ERROR:
-                        log.Println(string(job.Data))
+                        _, err := getError(job.Data)
+                        worker.ErrQueue <- err
                     case JOB_ASSIGN, JOB_ASSIGN_UNIQ:
                         if err := worker.exec(job); err != nil {
-                            log.Println(err)
+                            worker.ErrQueue <- err
                         }
                         continue
                     default:
-                        worker.Queue <- job
+                        worker.JobQueue <- job
                 }
         }
     }
 }
 
-func (worker * Worker) Result() (job *Job) {
-    if l := len(worker.Queue); l != 1 {
+func (worker * Worker) LastResult() (job *WorkerJob) {
+    if l := len(worker.JobQueue); l != 1 {
         if l == 0 {
             return
         }
         for i := 0; i < l - 1; i ++ {
-            <-worker.Queue
+            <-worker.JobQueue
         }
     }
-    return <-worker.Queue
+    return <-worker.JobQueue
 }
 
 // Close
@@ -149,11 +152,10 @@ func (worker * Worker) Close() (err os.Error){
     return err
 }
 
-func (worker * Worker) WriteJob(job *Job) (err os.Error) {
+func (worker * Worker) WriteJob(job *WorkerJob) (err os.Error) {
     e := make(chan os.Error)
     for _, v := range worker.clients {
         go func() {
-            log.Println(v)
             e <- v.WriteJob(job)
         }()
     }
@@ -162,24 +164,24 @@ func (worker * Worker) WriteJob(job *Job) (err os.Error) {
 
 // Echo
 func (worker * Worker) Echo(data []byte) (err os.Error) {
-    job := NewJob(REQ, ECHO_REQ, data)
+    job := NewWorkerJob(REQ, ECHO_REQ, data)
     return worker.WriteJob(job)
 }
 
 // Reset
 func (worker * Worker) Reset() (err os.Error){
-    job := NewJob(REQ, RESET_ABILITIES, nil)
+    job := NewWorkerJob(REQ, RESET_ABILITIES, nil)
     return worker.WriteJob(job)
 }
 
 // SetId
 func (worker * Worker) SetId(id string) (err os.Error) {
-    job := NewJob(REQ, SET_CLIENT_ID, []byte(id))
+    job := NewWorkerJob(REQ, SET_CLIENT_ID, []byte(id))
     return worker.WriteJob(job)
 }
 
 // Exec
-func (worker * Worker) exec(job *Job) (err os.Error) {
+func (worker * Worker) exec(job *WorkerJob) (err os.Error) {
     jobdata := splitByteArray(job.Data, '\x00')
     job.Handle = string(jobdata[0])
     funcname := string(jobdata[1])
@@ -194,8 +196,6 @@ func (worker * Worker) exec(job *Job) (err os.Error) {
         return os.NewError("function is nil")
     }
     result, err := f(job)
-    log.Println(result)
-    log.Println(err)
     var datatype uint32
     if err == nil {
         datatype = WORK_COMPLETE
@@ -206,27 +206,11 @@ func (worker * Worker) exec(job *Job) (err os.Error) {
             datatype = WORK_EXCEPTION
         }
     }
+
     job.magicCode = REQ
     job.dataType = datatype
     job.Data = result
-    
-    worker.WriteJob(job)
-    return
-}
 
-func splitByteArray(slice []byte, spot byte) (data [][]byte){
-    data = make([][]byte, 0, 10)
-    start, end := 0, 0
-    for i, v := range slice {
-        if v == spot {
-            if start != end {
-                data = append(data, slice[start:end])
-            }
-            start, end = i + 1, i + 1
-        } else {
-            end ++
-        }
-    }
-    data = append(data, slice[start:])
+    worker.WriteJob(job)
     return
 }
