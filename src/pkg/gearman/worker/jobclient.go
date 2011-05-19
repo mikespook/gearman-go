@@ -3,7 +3,7 @@ package gearman
 import (
     "net"
     "os"
-//    "log"
+    "log"
 )
 
 type jobClient struct {
@@ -22,6 +22,7 @@ func newJobClient(addr string, incoming chan *Job) (jobclient *jobClient, err os
 }
 
 func (client *jobClient) Work() (err os.Error) {
+    log.Println("Job client work().")
     noop := true
     for client.running {
         // grab job
@@ -65,6 +66,7 @@ func (client *jobClient) WriteJob(job * Job) (err os.Error) {
 }
 
 func (client *jobClient) Write(buf []byte) (err os.Error) {
+    log.Println(buf)
     var n int
     for i := 0; i < len(buf); i += n {
         n, err = client.conn.Write(buf[i:])

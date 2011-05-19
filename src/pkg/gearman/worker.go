@@ -112,12 +112,11 @@ func (worker * Worker) Work() {
                 switch job.dataType {
                     case NO_JOB:
                         // do nothing
-                        log.Println(job)
                     case ERROR:
                         log.Println(string(job.Data))
                     case JOB_ASSIGN, JOB_ASSIGN_UNIQ:
                         if err := worker.exec(job); err != nil {
-                            log.Panicln(err)
+                            log.Println(err)
                         }
                         continue
                     default:
@@ -154,6 +153,7 @@ func (worker * Worker) WriteJob(job *Job) (err os.Error) {
     e := make(chan os.Error)
     for _, v := range worker.clients {
         go func() {
+            log.Println(v)
             e <- v.WriteJob(job)
         }()
     }
@@ -189,7 +189,13 @@ func (worker * Worker) exec(job *Job) (err os.Error) {
         job.UniqueId = string(jobdata[2])
         job.Data = jobdata[3]
     }
-    result, err := worker.functions[funcname](job)
+    f := worker.functions[funcname]
+    if f == nil {
+        return os.NewError("function is nil")
+    }
+    result, err := f(job)
+    log.Println(result)
+    log.Println(err)
     var datatype uint32
     if err == nil {
         datatype = WORK_COMPLETE
@@ -200,23 +206,27 @@ func (worker * Worker) exec(job *Job) (err os.Error) {
             datatype = WORK_EXCEPTION
         }
     }
-    worker.WriteJob(NewJob(REQ, datatype, result))
+    job.magicCode = REQ
+    job.dataType = datatype
+    job.Data = result
+    
+    worker.WriteJob(job)
     return
 }
 
 func splitByteArray(slice []byte, spot byte) (data [][]byte){
     data = make([][]byte, 0, 10)
-    log.Println(data)
     start, end := 0, 0
     for i, v := range slice {
         if v == spot {
             if start != end {
                 data = append(data, slice[start:end])
             }
-            start, end = i, i
+            start, end = i + 1, i + 1
         } else {
             end ++
         }
     }
+    data = append(data, slice[start:])
     return
 }

@@ -2,6 +2,7 @@ package gearman
 
 import (
     "os"
+    "log"
 )
 
 type Job struct {
@@ -42,23 +43,27 @@ func DecodeJob(data []byte) (job *Job, err os.Error) {
     if len(data[12:]) != int(l) {
          return nil, os.NewError("Invalid data length.")
     }
-    switch(byteToUint32([4]byte{data[4], data[5], data[6], data[7]})) {
-        case ECHO_RES:
-            data = data[12:]
-    }
+    data = data[12:]
     return NewJob(REQ, datatype, data), err
 }
 
 func (job *Job) Encode() (data []byte) {
     magiccode := uint32ToByte(job.magicCode)
     datatype := uint32ToByte(job.dataType)
+    data = make([]byte, 0, 1024 * 64)
+    data = append(data, magiccode[:] ...)
+    data = append(data, datatype[:] ...)
+    data = append(data, []byte{0, 0, 0, 0} ...)
     l := len(job.Data)
+    if job.Handle != "" {
+        data = append(data, []byte(job.Handle) ...)
+        data = append(data, 0)
+        l += len(job.Handle) + 1
+    }
+    data = append(data, job.Data ...)
     datalength := uint32ToByte(uint32(l))
-    data = make([]byte, 12 + l)
-    copy(data[:4], magiccode[:])
-    copy(data[4:8], datatype[:])
     copy(data[8:12], datalength[:])
-    copy(data[12:], job.Data)
+    log.Println(data)
     return
 }
 
