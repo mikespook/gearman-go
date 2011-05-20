@@ -30,7 +30,7 @@ func (client *jobClient) Work() {
         }
         var rel []byte
         for {
-            buf := make([]byte, 2048)
+            buf := make([]byte, BUFFER_SIZE)
             n, err := client.conn.Read(buf)
             if err != nil {
                 if err == os.EOF && n == 0 {
@@ -40,6 +40,9 @@ func (client *jobClient) Work() {
                 continue OUT
             }
             rel = append(rel, buf[0: n] ...)
+            if n < BUFFER_SIZE {
+                break
+            }
         }
         job, err := DecodeWorkerJob(rel)
         if err != nil {

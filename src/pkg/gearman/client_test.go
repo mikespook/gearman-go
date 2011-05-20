@@ -19,17 +19,21 @@ func TestClientAddServer(t * testing.T) {
 }
 
 func TestClientEcho(t * testing.T) {
-    if err := client.Echo([]byte("Hello world")); err != nil {
+    if echo, err := client.Echo([]byte("Hello world")); err != nil {
         t.Error(err)
+    } else {
+        t.Log(echo)
     }
 }
-
+/*
 func TestClientDo(t * testing.T) {
-    if err := client.Do("ToUpper", []byte("abcdef"), JOB_NORMAL); err != nil {
+    if handle, err := client.Do("ToUpper", []byte("abcdef"), JOB_LOW | JOB_BG); err != nil {
         t.Error(err)
+    } else {
+        t.Log(handle)
     }
 }
-
+*/
 /*
 func TestClientLastResult(t * testing.T) {
     job := client.LastResult()
@@ -46,3 +50,4 @@ func TestClientClose(t * testing.T) {
         t.Error(err)
     }
 }
+

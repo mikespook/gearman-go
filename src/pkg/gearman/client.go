@@ -3,20 +3,19 @@ package gearman
 import (
     "os"
     "net"
-//    "log"
+    "sync"
 )
 
 type Client struct {
+    mutex sync.Mutex
     conn net.Conn
-    running bool
     JobQueue chan *ClientJob
-    ErrQueue chan os.Error
+    UId uint32
 }
 
 func NewClient() (client * Client){
-    client = &Client{running:false,
-        JobQueue:make(chan *ClientJob, QUEUE_CAP),
-        ErrQueue:make(chan os.Error, QUEUE_CAP),}
+    client = &Client{JobQueue:make(chan *ClientJob, QUEUE_CAP),
+        UId:1}
     return
 }
 
@@ -26,49 +25,42 @@ func (client *Client) AddServer(addr string) (err os.Error) {
         return
     }
     client.conn = conn
-    go client.work()
     return
 }
 
-func (client *Client) work() {
-    OUT: for client.running {
-        var rel []byte
-        for {
-            buf := make([]byte, 2048)
-            n, err := client.conn.Read(buf)
-            if err != nil {
-                if err == os.EOF && n == 0 {
-                    break
-                }
-                client.ErrQueue <- err
-                continue OUT
+func (client *Client) ReadJob() (job *ClientJob, err os.Error) {
+    var rel []byte
+    for {
+        buf := make([]byte, BUFFER_SIZE)
+        var n int
+        if n, err = client.conn.Read(buf); err != nil {
+            if (err == os.EOF && n == 0) {
+                break
             }
-            rel = append(rel, buf[0: n] ...)
+            return
         }
-        job, err := DecodeClientJob(rel)
-        if err != nil {
-            client.ErrQueue <- err
-        } else {
-            switch(job.dataType) {
-                case ERROR:
-                    _, err := getError(job.Data)
-                    client.ErrQueue <- err
-                case ECHO_RES:
-                    client.JobQueue <- job
-            }
+        rel = append(rel, buf[0: n] ...)
+        if n < BUFFER_SIZE {
+            break
         }
     }
+    if job, err = DecodeClientJob(rel); err != nil {
+        return
+    } else {
+        switch(job.dataType) {
+            case ERROR:
+                _, err = getError(job.Data)
+                return
+            case WORK_DATA, WORK_WARNING, WORK_STATUS, WORK_COMPLETE, WORK_FAIL, WORK_EXCEPTION:
+                client.JobQueue <- job
+        }
+    }
+    return
 }
 
-func (client *Client) Do(funcname string, data []byte, flag byte) (err os.Error) {
+func (client *Client) Do(funcname string, data []byte, flag byte) (handle string, err os.Error) {
     var datatype uint32
-    if flag & JOB_NORMAL == JOB_NORMAL {
-        if flag & JOB_BG == JOB_BG {
-            datatype = SUBMIT_JOB_BG
-        } else {
-            datatype = SUBMIT_JOB
-        }
-    } else if flag & JOB_LOW == JOB_LOW {
+    if flag & JOB_LOW == JOB_LOW {
         if flag & JOB_BG == JOB_BG {
             datatype = SUBMIT_JOB_LOW_BG
         } else {
@@ -80,20 +72,97 @@ func (client *Client) Do(funcname string, data []byte, flag byte) (err os.Error)
         } else {
             datatype = SUBMIT_JOB_HIGH
         }
+    } else if flag & JOB_BG == JOB_BG {
+        datatype = SUBMIT_JOB_BG
+    } else {
+        datatype = SUBMIT_JOB
     }
+
     rel := make([]byte, 0, 1024 * 64)
     rel = append(rel, []byte(funcname) ...)
     rel = append(rel, '\x00')
-    rel = append(rel, '\xFF')
+    client.mutex.Lock()
+    uid := uint32ToByte(client.UId)
+    client.UId ++
+    rel = append(rel, uid[:] ...)
+    client.mutex.Unlock()
     rel = append(rel, '\x00')
     rel = append(rel, data ...)
-    job := NewClientJob(REQ, datatype, data)
-    return client.WriteJob(job)
+    if err = client.WriteJob(NewClientJob(REQ, datatype, rel)); err != nil {
+        return
+    }
+    var job *ClientJob
+    if job, err = client.ReadLastJob(JOB_CREATED); err != nil {
+        return
+    }
+    handle = string(job.Data)
+    go func() {
+        if flag & JOB_BG != JOB_BG {
+            for {
+                if job, err = client.ReadJob(); err != nil {
+                    return
+                }
+                switch job.dataType {
+                    case WORK_DATA, WORK_WARNING:
+                    case WORK_STATUS:
+                    case WORK_COMPLETE, WORK_FAIL, WORK_EXCEPTION:
+                        return
+                }
+            }
+        }
+    }()
+    return
 }
 
-func (client *Client) Echo(data []byte) (err os.Error) {
-    job := NewClientJob(REQ, ECHO_REQ, data)
-    return client.WriteJob(job)
+func (client *Client) ReadLastJob(datatype uint32) (job *ClientJob, err os.Error){
+    for {
+        if job, err = client.ReadJob(); err != nil {
+            return
+        }
+        if job.dataType == datatype {
+            break
+        }
+    }
+    if job.dataType != datatype {
+        err = os.NewError("No job got.")
+    }
+    return
+}
+
+func (client *Client) Status(handle string) (known, running bool, numerator, denominator uint, err os.Error) {
+
+    if err = client.WriteJob(NewClientJob(REQ, GET_STATUS, []byte(handle))); err != nil {
+        return
+    }
+    var job * ClientJob
+    if job, err = client.ReadLastJob(STATUS_RES); err != nil {
+        return
+    }
+    data := splitByteArray(job.Data, '\x00')
+    if len(data) != 5 {
+        err = os.NewError("Data Error.")
+        return
+    }
+    if handle != string(data[0]) {
+        err = os.NewError("Invalid handle.")
+        return
+    }
+    known = data[1][0] == '1'
+    running = data[2][0] == '1'
+    numerator = uint(data[3][0])
+    denominator = uint(data[4][0])
+    return
+}
+
+func (client *Client) Echo(data []byte) (echo []byte, err os.Error) {
+    if err = client.WriteJob(NewClientJob(REQ, ECHO_REQ, data)); err != nil {
+        return
+    }
+    var job *ClientJob
+    if job, err = client.ReadLastJob(ECHO_RES); err != nil {
+        return
+    }
+    return job.Data, err
 }
 
 func (client *Client) LastResult() (job *ClientJob) {
@@ -106,18 +175,6 @@ func (client *Client) LastResult() (job *ClientJob) {
         }
     }
     return <-client.JobQueue
-}
-
-func (client *Client) LastError() (err os.Error) {
-    if l := len(client.ErrQueue); l != 1 {
-        if l == 0 {
-            return
-        }
-        for i := 0; i < l - 1; i ++ {
-            <-client.ErrQueue
-        }
-    }
-    return <-client.ErrQueue
 }
 
 func (client *Client) WriteJob(job *ClientJob) (err os.Error) {
@@ -136,9 +193,7 @@ func (client *Client) Write(buf []byte) (err os.Error) {
 }
 
 func (client *Client) Close() (err os.Error) {
-    client.running = false
     err = client.conn.Close()
     close(client.JobQueue)
-    close(client.ErrQueue)
     return
 }

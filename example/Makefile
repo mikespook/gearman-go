@@ -9,7 +9,7 @@ TARG=gearman
 # GOFILES=\
 #	worker.go\
 
-CLEANFILES+= worker
+CLEANFILES+= worker client
 
 include $(GOROOT)/src/Make.pkg
 

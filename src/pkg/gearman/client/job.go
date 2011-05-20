@@ -2,6 +2,7 @@ package gearman
 
 import (
     "os"
+//    "log"
 )
 
 type ClientJob struct {
@@ -47,3 +48,43 @@ func (job *ClientJob) Encode() (data []byte) {
     return
 }
 
+func (job * ClientJob) Result() (data []byte, err os.Error){
+    switch job.dataType {
+        case WORK_FAIL:
+            job.Handle = string(job.Data)
+            err = os.NewError("Work fail.")
+            return
+        case WORK_EXCEPTION:
+            err = os.NewError("Work exception.")
+            fallthrough
+        case WORK_COMPLETE:
+            s := splitByteArray(job.Data, '\x00')
+            if len(s) != 2 {
+                err = os.NewError("Invalid data.")
+                return
+            }
+            job.Handle = string(s[0])
+            data = s[1]
+        default:
+            err = os.NewError("The job is not a result.")
+    }
+    return
+}
+
+func (job *ClientJob) Update() (data []byte, err os.Error) {
+    if job.dataType != WORK_DATA && job.dataType != WORK_WARNING {
+        err = os.NewError("The job is not a update.")
+        return
+    }
+    s := splitByteArray(job.Data, '\x00')
+    if len(s) != 2 {
+        err = os.NewError("Invalid data.")
+        return
+    }
+    if job.dataType == WORK_WARNING {
+        err = os.NewError("Work warning")
+    }
+    job.Handle = string(s[0])
+    data = s[1]
+    return
+}

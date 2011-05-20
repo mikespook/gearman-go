@@ -9,27 +9,33 @@ const (
     WORKER_SERVER_CAP = 32
     WORKER_FUNCTION_CAP = 512
     QUEUE_CAP = 512
+    BUFFER_SIZE = 1024
 
 
      // \x00REQ
     REQ = 5391697
+    REQ_STR = "\x00REQ"
     // \x00RES
     RES = 5391699
+    RES_STR = "\x00RES"
 
     CAN_DO = 1
     CANT_DO = 2
     RESET_ABILITIES = 3
     PRE_SLEEP = 4
     NOOP = 6
+    JOB_CREATED = 8
     GRAB_JOB = 9
     NO_JOB = 10
     JOB_ASSIGN = 11
     WORK_STATUS = 12
     WORK_COMPLETE = 13
     WORK_FAIL = 14
+    GET_STATUS = 15
     ECHO_REQ = 16
     ECHO_RES = 17
     ERROR = 19
+    STATUS_RES = 20
     SET_CLIENT_ID = 22
     CAN_DO_TIMEOUT = 23
     WORK_EXCEPTION = 25

@@ -121,7 +121,7 @@ func (worker * Worker) Work() {
                         if err := worker.exec(job); err != nil {
                             worker.ErrQueue <- err
                         }
-                        continue
+                        fallthrough
                     default:
                         worker.JobQueue <- job
                 }
