@@ -3,7 +3,7 @@ package gearman
 import (
     "net"
     "os"
-//    "log"
+    "log"
 )
 
 type jobClient struct {
@@ -44,12 +44,13 @@ func (client *jobClient) Work() {
                 break
             }
         }
+        log.Println(string(rel))
         job, err := DecodeWorkerJob(rel)
         if err != nil {
             client.worker.ErrQueue <- err
             continue
         } else {
-            switch(job.dataType) {
+            switch(job.DataType) {
                 case NOOP:
                     noop = true
                 case NO_JOB:

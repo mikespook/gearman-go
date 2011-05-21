@@ -111,7 +111,7 @@ func (worker * Worker) Work() {
                 if job == nil {
                     break
                 }
-                switch job.dataType {
+                switch job.DataType {
                     case NO_JOB:
                         // do nothing
                     case ERROR:
@@ -120,8 +120,8 @@ func (worker * Worker) Work() {
                     case JOB_ASSIGN, JOB_ASSIGN_UNIQ:
                         if err := worker.exec(job); err != nil {
                             worker.ErrQueue <- err
+                            continue
                         }
-                        fallthrough
                     default:
                         worker.JobQueue <- job
                 }
@@ -185,7 +185,7 @@ func (worker * Worker) exec(job *WorkerJob) (err os.Error) {
     jobdata := splitByteArray(job.Data, '\x00')
     job.Handle = string(jobdata[0])
     funcname := string(jobdata[1])
-    if job.dataType == JOB_ASSIGN {
+    if job.DataType == JOB_ASSIGN {
         job.Data = jobdata[2]
     } else {
         job.UniqueId = string(jobdata[2])
@@ -208,7 +208,7 @@ func (worker * Worker) exec(job *WorkerJob) (err os.Error) {
     }
 
     job.magicCode = REQ
-    job.dataType = datatype
+    job.DataType = datatype
     job.Data = result
 
     worker.WriteJob(job)

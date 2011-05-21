@@ -7,14 +7,13 @@ import (
 
 type ClientJob struct {
     Data []byte
-    Handle string
-    UniqueId string
-    magicCode, dataType uint32
+    Handle, UniqueId string
+    magicCode, DataType uint32
 }
 
 func NewClientJob(magiccode, datatype uint32, data []byte) (job *ClientJob) {
     return &ClientJob{magicCode:magiccode,
-        dataType:datatype,
+        DataType:datatype,
         Data:data}
 }
 
@@ -36,20 +35,19 @@ func DecodeClientJob(data []byte) (job * ClientJob, err os.Error) {
 
 func (job *ClientJob) Encode() (data []byte) {
     magiccode := uint32ToByte(job.magicCode)
-    datatype := uint32ToByte(job.dataType)
+    datatype := uint32ToByte(job.DataType)
     data = make([]byte, 0, 1024 * 64)
     data = append(data, magiccode[:] ...)
     data = append(data, datatype[:] ...)
-    data = append(data, []byte{0, 0, 0, 0} ...)
     l := len(job.Data)
-    data = append(data, job.Data ...)
     datalength := uint32ToByte(uint32(l))
-    copy(data[8:12], datalength[:])
+    data = append(data, datalength[:] ...)
+    data = append(data, job.Data ...)
     return
 }
 
 func (job * ClientJob) Result() (data []byte, err os.Error){
-    switch job.dataType {
+    switch job.DataType {
         case WORK_FAIL:
             job.Handle = string(job.Data)
             err = os.NewError("Work fail.")
@@ -72,7 +70,7 @@ func (job * ClientJob) Result() (data []byte, err os.Error){
 }
 
 func (job *ClientJob) Update() (data []byte, err os.Error) {
-    if job.dataType != WORK_DATA && job.dataType != WORK_WARNING {
+    if job.DataType != WORK_DATA && job.DataType != WORK_WARNING {
         err = os.NewError("The job is not a update.")
         return
     }
@@ -81,7 +79,7 @@ func (job *ClientJob) Update() (data []byte, err os.Error) {
         err = os.NewError("Invalid data.")
         return
     }
-    if job.dataType == WORK_WARNING {
+    if job.DataType == WORK_WARNING {
         err = os.NewError("Work warning")
     }
     job.Handle = string(s[0])

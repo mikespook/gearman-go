@@ -4,17 +4,21 @@ import (
     "os"
     "net"
     "sync"
+    "log"
+    "strconv"
 )
 
 type Client struct {
     mutex sync.Mutex
     conn net.Conn
     JobQueue chan *ClientJob
+    incoming chan []byte
     UId uint32
 }
 
 func NewClient() (client * Client){
     client = &Client{JobQueue:make(chan *ClientJob, QUEUE_CAP),
+        incoming:make(chan []byte, QUEUE_CAP),
         UId:1}
     return
 }
@@ -28,7 +32,7 @@ func (client *Client) AddServer(addr string) (err os.Error) {
     return
 }
 
-func (client *Client) ReadJob() (job *ClientJob, err os.Error) {
+func (client *Client) read() (data []byte, err os.Error) {
     var rel []byte
     for {
         buf := make([]byte, BUFFER_SIZE)
@@ -44,10 +48,17 @@ func (client *Client) ReadJob() (job *ClientJob, err os.Error) {
             break
         }
     }
+}
+
+func (client *Client) ReadJob() (job *ClientJob, err os.Error) {
+    var rel []byte
+    if rel, err = client.read(); err != nil {
+        return
+    }
     if job, err = DecodeClientJob(rel); err != nil {
         return
     } else {
-        switch(job.dataType) {
+        switch(job.DataType) {
             case ERROR:
                 _, err = getError(job.Data)
                 return
@@ -82,9 +93,9 @@ func (client *Client) Do(funcname string, data []byte, flag byte) (handle string
     rel = append(rel, []byte(funcname) ...)
     rel = append(rel, '\x00')
     client.mutex.Lock()
-    uid := uint32ToByte(client.UId)
+    uid := strconv.Itoa(int(client.UId))
     client.UId ++
-    rel = append(rel, uid[:] ...)
+    rel = append(rel, []byte(uid) ...)
     client.mutex.Unlock()
     rel = append(rel, '\x00')
     rel = append(rel, data ...)
@@ -92,17 +103,18 @@ func (client *Client) Do(funcname string, data []byte, flag byte) (handle string
         return
     }
     var job *ClientJob
-    if job, err = client.ReadLastJob(JOB_CREATED); err != nil {
+    if job, err = client.readLastJob(JOB_CREATED); err != nil {
         return
     }
     handle = string(job.Data)
+    log.Println(handle)
     go func() {
         if flag & JOB_BG != JOB_BG {
             for {
                 if job, err = client.ReadJob(); err != nil {
                     return
                 }
-                switch job.dataType {
+                switch job.DataType {
                     case WORK_DATA, WORK_WARNING:
                     case WORK_STATUS:
                     case WORK_COMPLETE, WORK_FAIL, WORK_EXCEPTION:
@@ -114,16 +126,16 @@ func (client *Client) Do(funcname string, data []byte, flag byte) (handle string
     return
 }
 
-func (client *Client) ReadLastJob(datatype uint32) (job *ClientJob, err os.Error){
+func (client *Client) readLastJob(datatype uint32) (job *ClientJob, err os.Error){
     for {
         if job, err = client.ReadJob(); err != nil {
             return
         }
-        if job.dataType == datatype {
+        if job.DataType == datatype {
             break
         }
     }
-    if job.dataType != datatype {
+    if job.DataType != datatype {
         err = os.NewError("No job got.")
     }
     return
@@ -135,7 +147,7 @@ func (client *Client) Status(handle string) (known, running bool, numerator, den
         return
     }
     var job * ClientJob
-    if job, err = client.ReadLastJob(STATUS_RES); err != nil {
+    if job, err = client.readLastJob(STATUS_RES); err != nil {
         return
     }
     data := splitByteArray(job.Data, '\x00')
@@ -159,7 +171,7 @@ func (client *Client) Echo(data []byte) (echo []byte, err os.Error) {
         return
     }
     var job *ClientJob
-    if job, err = client.ReadLastJob(ECHO_RES); err != nil {
+    if job, err = client.readLastJob(ECHO_RES); err != nil {
         return
     }
     return job.Data, err
@@ -178,10 +190,10 @@ func (client *Client) LastResult() (job *ClientJob) {
 }
 
 func (client *Client) WriteJob(job *ClientJob) (err os.Error) {
-    return client.Write(job.Encode())
+    return client.write(job.Encode())
 }
 
-func (client *Client) Write(buf []byte) (err os.Error) {
+func (client *Client) write(buf []byte) (err os.Error) {
     var n int
     for i := 0; i < len(buf); i += n {
         n, err = client.conn.Write(buf[i:])

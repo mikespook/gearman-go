@@ -7,16 +7,15 @@ import (
 
 type WorkerJob struct {
     Data []byte
-    Handle string
-    UniqueId string
+    Handle, UniqueId string
     client *jobClient
-    magicCode, dataType uint32
+    magicCode, DataType uint32
     Job
 }
 
 func NewWorkerJob(magiccode, datatype uint32, data []byte) (job *WorkerJob) {
     return &WorkerJob{magicCode:magiccode,
-        dataType: datatype,
+        DataType: datatype,
         Data:data}
 }
 
@@ -38,7 +37,7 @@ func DecodeWorkerJob(data []byte) (job *WorkerJob, err os.Error) {
 
 func (job *WorkerJob) Encode() (data []byte) {
     magiccode := uint32ToByte(job.magicCode)
-    datatype := uint32ToByte(job.dataType)
+    datatype := uint32ToByte(job.DataType)
     data = make([]byte, 0, 1024 * 64)
     data = append(data, magiccode[:] ...)
     data = append(data, datatype[:] ...)

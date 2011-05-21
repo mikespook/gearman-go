@@ -28,7 +28,10 @@ func main() {
             switch str {
                 case "echo":
                     worker.Echo([]byte("Hello world!"))
-                    job := <-worker.JobQueue
+                    var job *gearman.WorkerJob
+                    for job = <-worker.JobQueue; job.DataType != gearman.ECHO_RES; job = <-worker.JobQueue {
+                        log.Println(job)
+                    }
                     log.Println(string(job.Data))
                 case "quit":
                     worker.Close()
