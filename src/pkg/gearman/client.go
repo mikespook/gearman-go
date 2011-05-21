@@ -4,7 +4,7 @@ import (
     "os"
     "net"
     "sync"
-    "log"
+//    "log"
     "strconv"
 )
 
@@ -33,21 +33,43 @@ func (client *Client) AddServer(addr string) (err os.Error) {
 }
 
 func (client *Client) read() (data []byte, err os.Error) {
-    var rel []byte
-    for {
-        buf := make([]byte, BUFFER_SIZE)
-        var n int
-        if n, err = client.conn.Read(buf); err != nil {
-            if (err == os.EOF && n == 0) {
+    if len(client.incoming) > 0 {
+        data = <-client.incoming
+    } else {
+        for {
+            buf := make([]byte, BUFFER_SIZE)
+            var n int
+            if n, err = client.conn.Read(buf); err != nil {
+                if (err == os.EOF && n == 0) {
+                    break
+                }
+                return
+            }
+            data = append(data, buf[0: n] ...)
+            if n < BUFFER_SIZE {
                 break
             }
-            return
-        }
-        rel = append(rel, buf[0: n] ...)
-        if n < BUFFER_SIZE {
-            break
         }
     }
+    start, end := 0, 4
+    for i := 0; i < len(data); i ++{
+        if string(data[start:end]) == RES_STR {
+            l := int(byteToUint32([4]byte{data[start+8], data[start+9], data[start+10], data[start+11]}))
+            total := l + 12
+            if total == len(data) {
+                return
+            } else {
+                client.incoming <- data[total:]
+                data = data[:total]
+                return
+            }
+        } else {
+            start++
+            end++
+        }
+    }
+    err = os.NewError("Invalid data struct.")
+    return
 }
 
 func (client *Client) ReadJob() (job *ClientJob, err os.Error) {
@@ -107,7 +129,6 @@ func (client *Client) Do(funcname string, data []byte, flag byte) (handle string
         return
     }
     handle = string(job.Data)
-    log.Println(handle)
     go func() {
         if flag & JOB_BG != JOB_BG {
             for {
@@ -174,7 +195,8 @@ func (client *Client) Echo(data []byte) (echo []byte, err os.Error) {
     if job, err = client.readLastJob(ECHO_RES); err != nil {
         return
     }
-    return job.Data, err
+    echo, err = job.Result()
+    return
 }
 
 func (client *Client) LastResult() (job *ClientJob) {

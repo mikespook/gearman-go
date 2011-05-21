@@ -10,18 +10,24 @@ func main() {
     defer client.Close()
     client.AddServer("127.0.0.1:4730")
     echo := []byte("Hello world")
-/*
-    log.Println(echo)
-    log.Println(client.Echo(echo))
-*/
+
+    if data, err := client.Echo(echo); err != nil {
+        log.Println(string(data))
+    }
+
     handle, err := client.Do("ToUpper", echo, gearman.JOB_NORMAL)
     if err != nil {
         log.Println(err)
     } else {
         log.Println(handle)
-        log.Println(<-client.JobQueue)
+        job := <-client.JobQueue
+        if data, err := job.Result(); err != nil {
+            log.Println(err)
+        } else {
+            log.Println(string(data))
+        }
     }
-    /*
+    
     known, running, numerator, denominator, err := client.Status(handle)
     if err != nil {
         log.Println(err)
@@ -42,5 +48,5 @@ func main() {
         log.Println(err)
         log.Println(data)
     }
-    */
+    
 }
