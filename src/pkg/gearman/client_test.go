@@ -25,7 +25,7 @@ func TestClientEcho(t * testing.T) {
         t.Log(echo)
     }
 }
-/*
+
 func TestClientDo(t * testing.T) {
     if handle, err := client.Do("ToUpper", []byte("abcdef"), JOB_LOW | JOB_BG); err != nil {
         t.Error(err)
@@ -33,17 +33,6 @@ func TestClientDo(t * testing.T) {
         t.Log(handle)
     }
 }
-*/
-/*
-func TestClientLastResult(t * testing.T) {
-    job := client.LastResult()
-    if job == nil {
-        t.Error(os.NewError("job shuold be the echo."))
-    } else {
-        t.Log(job)
-    }
-}
-*/
 
 func TestClientClose(t * testing.T) {
     if err := client.Close(); err != nil {

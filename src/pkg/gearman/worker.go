@@ -171,7 +171,9 @@ func (worker * Worker) Echo(data []byte) (err os.Error) {
 // Reset
 func (worker * Worker) Reset() (err os.Error){
     job := NewWorkerJob(REQ, RESET_ABILITIES, nil)
-    return worker.WriteJob(job)
+    err = worker.WriteJob(job)
+    worker.functions = make(JobFunctionMap)
+    return
 }
 
 // SetId
