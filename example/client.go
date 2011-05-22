@@ -40,13 +40,4 @@ func main() {
     } else {
         log.Println("Not running")
     }
-    log.Println("read")
-    if job, err := client.ReadJob(); err != nil {
-        log.Println(err)
-    } else {
-        data, err := job.Result(); 
-        log.Println(err)
-        log.Println(data)
-    }
-    
 }

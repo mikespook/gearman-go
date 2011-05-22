@@ -4,7 +4,7 @@ import (
     "os"
     "net"
     "sync"
-//    "log"
+    "log"
     "strconv"
 )
 
@@ -182,8 +182,12 @@ func (client *Client) Status(handle string) (known, running bool, numerator, den
     }
     known = data[1][0] == '1'
     running = data[2][0] == '1'
-    numerator = uint(data[3][0])
-    denominator = uint(data[4][0])
+    if numerator, err = strconv.Atoui(string(data[3][0])); err != nil {
+        return
+    }
+    if denominator, err = strconv.Atoui(string(data[4][0])); err != nil {
+        return
+    }
     return
 }
 
@@ -195,7 +199,7 @@ func (client *Client) Echo(data []byte) (echo []byte, err os.Error) {
     if job, err = client.readLastJob(ECHO_RES); err != nil {
         return
     }
-    echo, err = job.Result()
+    echo = job.Data
     return
 }
 
