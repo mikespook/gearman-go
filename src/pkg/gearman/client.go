@@ -1,3 +1,7 @@
+// Copyright 2011 Xing Xing <mikespook@gmail.com> All rights reserved.
+// Use of this source code is governed by a MIT
+// license that can be found in the LICENSE file.
+
 package gearman
 
 import (
@@ -8,6 +12,15 @@ import (
     "strconv"
 )
 
+/* 
+The client side api for gearman.
+
+usage:
+    client = NewClient()
+    client.AddServer("127.0.0.1:4730")
+    handle := client.Do("foobar", []byte("data here"), JOB_LOW | JOB_BG)
+
+*/
 type Client struct {
     mutex sync.Mutex
     conn net.Conn
@@ -16,6 +29,7 @@ type Client struct {
     UId uint32
 }
 
+// Create a new client.
 func NewClient() (client * Client){
     client = &Client{JobQueue:make(chan *ClientJob, QUEUE_CAP),
         incoming:make(chan []byte, QUEUE_CAP),
@@ -23,6 +37,9 @@ func NewClient() (client * Client){
     return
 }
 
+// Add a server.
+// In this version, one client connect to one job server.
+// Sample is better. Plz do the load balancing by your self.
 func (client *Client) AddServer(addr string) (err os.Error) {
     conn, err := net.Dial(TCP, addr)
     if err != nil {
@@ -32,10 +49,13 @@ func (client *Client) AddServer(addr string) (err os.Error) {
     return
 }
 
+// Internal read
 func (client *Client) read() (data []byte, err os.Error) {
     if len(client.incoming) > 0 {
+        // incoming queue is not empty
         data = <-client.incoming
     } else {
+        // empty queue, read data from socket
         for {
             buf := make([]byte, BUFFER_SIZE)
             var n int
@@ -51,6 +71,7 @@ func (client *Client) read() (data []byte, err os.Error) {
             }
         }
     }
+    // split package
     start, end := 0, 4
     for i := 0; i < len(data); i ++{
         if string(data[start:end]) == RES_STR {
@@ -72,6 +93,8 @@ func (client *Client) read() (data []byte, err os.Error) {
     return
 }
 
+// Read a job from job server.
+// This function will return the job, and add it to the job queue.
 func (client *Client) ReadJob() (job *ClientJob, err os.Error) {
     var rel []byte
     if rel, err = client.read(); err != nil {
@@ -91,6 +114,12 @@ func (client *Client) ReadJob() (job *ClientJob, err os.Error) {
     return
 }
 
+// Do the function.
+// funcname is a string with function name.
+// data is encoding to byte array.
+// flag set the job type, include running level: JOB_LOW, JOB_NORMAL, JOB_HIGH,
+// and if it is background job: JOB_BG.
+// JOB_LOW | JOB_BG means the job is running with low level in background.
 func (client *Client) Do(funcname string, data []byte, flag byte) (handle string, err os.Error) {
     var datatype uint32
     if flag & JOB_LOW == JOB_LOW {
@@ -147,6 +176,7 @@ func (client *Client) Do(funcname string, data []byte, flag byte) (handle string
     return
 }
 
+// Internal read last job
 func (client *Client) readLastJob(datatype uint32) (job *ClientJob, err os.Error){
     for {
         if job, err = client.ReadJob(); err != nil {
@@ -162,6 +192,8 @@ func (client *Client) readLastJob(datatype uint32) (job *ClientJob, err os.Error
     return
 }
 
+// Get job status from job server.
+// !!!Not fully tested.!!!
 func (client *Client) Status(handle string) (known, running bool, numerator, denominator uint, err os.Error) {
 
     if err = client.WriteJob(NewClientJob(REQ, GET_STATUS, []byte(handle))); err != nil {
@@ -191,6 +223,7 @@ func (client *Client) Status(handle string) (known, running bool, numerator, den
     return
 }
 
+// Send a something out, get the samething back.
 func (client *Client) Echo(data []byte) (echo []byte, err os.Error) {
     if err = client.WriteJob(NewClientJob(REQ, ECHO_REQ, data)); err != nil {
         return
@@ -203,7 +236,10 @@ func (client *Client) Echo(data []byte) (echo []byte, err os.Error) {
     return
 }
 
-func (client *Client) LastResult() (job *ClientJob) {
+// Get the last job.
+// the job means a network package. 
+// Normally, it is the job executed result.
+func (client *Client) LastJob() (job *ClientJob) {
     if l := len(client.JobQueue); l != 1 {
         if l == 0 {
             return
@@ -215,10 +251,12 @@ func (client *Client) LastResult() (job *ClientJob) {
     return <-client.JobQueue
 }
 
+// Send the job to job server.
 func (client *Client) WriteJob(job *ClientJob) (err os.Error) {
     return client.write(job.Encode())
 }
 
+// Internal write
 func (client *Client) write(buf []byte) (err os.Error) {
     var n int
     for i := 0; i < len(buf); i += n {
@@ -230,6 +268,7 @@ func (client *Client) write(buf []byte) (err os.Error) {
     return
 }
 
+// Close.
 func (client *Client) Close() (err os.Error) {
     err = client.conn.Close()
     close(client.JobQueue)

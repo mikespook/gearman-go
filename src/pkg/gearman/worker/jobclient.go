@@ -1,3 +1,7 @@
+// Copyright 2011 Xing Xing <mikespook@gmail.com> All rights reserved.
+// Use of this source code is governed by a MIT
+// license that can be found in the LICENSE file.
+
 package gearman
 
 import (
@@ -6,12 +10,14 @@ import (
 //    "log"
 )
 
+// The client of job server.
 type jobClient struct {
     conn net.Conn
     worker *Worker
     running bool
 }
 
+// Create the client of job server.
 func newJobClient(addr string, worker *Worker) (jobclient *jobClient, err os.Error) {
     conn, err := net.Dial(TCP, addr)
     if err != nil {
@@ -21,6 +27,7 @@ func newJobClient(addr string, worker *Worker) (jobclient *jobClient, err os.Err
     return jobclient, err
 }
 
+// Main loop.
 func (client *jobClient) Work() {
     noop := true
     OUT: for client.running {
@@ -64,10 +71,12 @@ func (client *jobClient) Work() {
     return
 }
 
+// Send a job to the job server.
 func (client *jobClient) WriteJob(job *WorkerJob) (err os.Error) {
     return client.Write(job.Encode())
 }
 
+// Write the encoded job.
 func (client *jobClient) Write(buf []byte) (err os.Error) {
     var n int
     for i := 0; i < len(buf); i += n {
@@ -79,6 +88,7 @@ func (client *jobClient) Write(buf []byte) (err os.Error) {
     return
 }
 
+// Close.
 func (client *jobClient) Close() (err os.Error) {
     client.running = false
     err = client.conn.Close()

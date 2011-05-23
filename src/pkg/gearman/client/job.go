@@ -1,3 +1,7 @@
+// Copyright 2011 Xing Xing <mikespook@gmail.com> All rights reserved.
+// Use of this source code is governed by a MIT
+// license that can be found in the LICENSE file.
+
 package gearman
 
 import (
@@ -5,18 +9,21 @@ import (
 //    "log"
 )
 
+// Client side job
 type ClientJob struct {
     Data []byte
     Handle, UniqueId string
     magicCode, DataType uint32
 }
 
+// Create a new job
 func NewClientJob(magiccode, datatype uint32, data []byte) (job *ClientJob) {
     return &ClientJob{magicCode:magiccode,
         DataType:datatype,
         Data:data}
 }
 
+// Decode a job from byte slice
 func DecodeClientJob(data []byte) (job * ClientJob, err os.Error) {
     if len(data) < 12 {
         err = os.NewError("Data length is too small.")
@@ -33,6 +40,7 @@ func DecodeClientJob(data []byte) (job * ClientJob, err os.Error) {
     return
 }
 
+// Encode a job to byte slice
 func (job *ClientJob) Encode() (data []byte) {
     magiccode := uint32ToByte(job.magicCode)
     datatype := uint32ToByte(job.DataType)
@@ -46,6 +54,7 @@ func (job *ClientJob) Encode() (data []byte) {
     return
 }
 
+// Extract the job's result.
 func (job * ClientJob) Result() (data []byte, err os.Error){
     switch job.DataType {
         case WORK_FAIL:
@@ -69,6 +78,7 @@ func (job * ClientJob) Result() (data []byte, err os.Error){
     return
 }
 
+// Extract the job's update
 func (job *ClientJob) Update() (data []byte, err os.Error) {
     if job.DataType != WORK_DATA && job.DataType != WORK_WARNING {
         err = os.NewError("The job is not a update.")

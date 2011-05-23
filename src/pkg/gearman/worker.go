@@ -1,3 +1,7 @@
+// Copyright 2011 Xing Xing <mikespook@gmail.com> All rights reserved.
+// Use of this source code is governed by a MIT
+// license that can be found in the LICENSE file.
+
 package gearman
 
 import(
@@ -6,9 +10,29 @@ import(
 //    "log"
 )
 
+// The definition of the callback function.
 type JobFunction func(job *WorkerJob) ([]byte, os.Error)
+// Map for added function.
 type JobFunctionMap map[string]JobFunction
 
+/*
+Worker side api for gearman.
+
+usage:
+    worker = NewWorker()
+    worker.AddFunction("foobar", foobar)
+    worker.AddServer("127.0.0.1:4730")
+    worker.Work() // Enter the worker's main loop
+
+The definition of the callback function 'foobar' should suit for the type 'JobFunction'.
+It looks like this:
+
+func foobar(job *WorkerJob) (data []byte, err os.Error) {
+    //sth. here
+    //plaplapla...
+    return
+}
+*/ 
 type Worker struct {
     clients []*jobClient
     functions JobFunctionMap
@@ -20,6 +44,7 @@ type Worker struct {
     ErrQueue chan os.Error
 }
 
+// Get a new worker
 func NewWorker() (worker *Worker) {
     worker = &Worker{
         // job server list
@@ -34,8 +59,8 @@ func NewWorker() (worker *Worker) {
     return
 }
 
-// add server
-// worker.AddServer("127.0.0.1:4730")
+// Add a server. The addr should be 'host:port' format.
+// The connection is established at this time.
 func (worker * Worker) AddServer(addr string) (err os.Error) {
     worker.mutex.Lock()
     defer worker.mutex.Unlock()
@@ -57,12 +82,11 @@ func (worker * Worker) AddServer(addr string) (err os.Error) {
 }
 
 
-// add function
+// Add a function.
+// Plz added job servers first, then functions.
+// The API will tell every connected job server that 'I can do this'
 func (worker * Worker) AddFunction(funcname string,
     f JobFunction, timeout uint32) (err os.Error) {
-    if f == nil {
-        return os.NewError("Job function should not be nil.")
-    }
     if len(worker.clients) < 1 {
         return os.NewError("Did not connect to Job Server.")
     }
@@ -86,7 +110,8 @@ func (worker * Worker) AddFunction(funcname string,
     return
 }
 
-// remove function
+// Remove a function.
+// Tell job servers 'I can not do this now' at the same time.
 func (worker * Worker) RemoveFunction(funcname string) (err os.Error) {
     worker.mutex.Lock()
     defer worker.mutex.Unlock()
@@ -100,7 +125,7 @@ func (worker * Worker) RemoveFunction(funcname string) (err os.Error) {
     return
 }
 
-// work
+// Main loop
 func (worker * Worker) Work() {
     for _, v := range worker.clients {
         go v.Work()
@@ -118,10 +143,11 @@ func (worker * Worker) Work() {
                         _, err := getError(job.Data)
                         worker.ErrQueue <- err
                     case JOB_ASSIGN, JOB_ASSIGN_UNIQ:
-                        if err := worker.exec(job); err != nil {
-                            worker.ErrQueue <- err
-                            continue
-                        }
+                        go func() {
+                            if err := worker.exec(job); err != nil {
+                                worker.ErrQueue <- err
+                            }
+                        }()
                     default:
                         worker.JobQueue <- job
                 }
@@ -129,7 +155,11 @@ func (worker * Worker) Work() {
     }
 }
 
-func (worker * Worker) LastResult() (job *WorkerJob) {
+// Get the last job in queue.
+// If there are more than one job in the queue, 
+// the last one will be returned,
+// the others will be lost.
+func (worker * Worker) LastJob() (job *WorkerJob) {
     if l := len(worker.JobQueue); l != 1 {
         if l == 0 {
             return
@@ -141,8 +171,7 @@ func (worker * Worker) LastResult() (job *WorkerJob) {
     return <-worker.JobQueue
 }
 
-// Close
-// should used as defer
+// Close.
 func (worker * Worker) Close() (err os.Error){
     worker.running = false
     for _, v := range worker.clients {
@@ -152,6 +181,9 @@ func (worker * Worker) Close() (err os.Error){
     return err
 }
 
+// Write a job to job server.
+// Here, the job's mean is not the oraginal mean.
+// Just looks like a network package for job's result or tell job server, there was a fail.
 func (worker * Worker) WriteJob(job *WorkerJob) (err os.Error) {
     e := make(chan os.Error)
     for _, v := range worker.clients {
@@ -162,13 +194,14 @@ func (worker * Worker) WriteJob(job *WorkerJob) (err os.Error) {
     return <- e
 }
 
-// Echo
+// Send a something out, get the samething back.
 func (worker * Worker) Echo(data []byte) (err os.Error) {
     job := NewWorkerJob(REQ, ECHO_REQ, data)
     return worker.WriteJob(job)
 }
 
-// Reset
+// Remove all of functions.
+// Both from the worker or job servers.
 func (worker * Worker) Reset() (err os.Error){
     job := NewWorkerJob(REQ, RESET_ABILITIES, nil)
     err = worker.WriteJob(job)
@@ -176,13 +209,13 @@ func (worker * Worker) Reset() (err os.Error){
     return
 }
 
-// SetId
+// Set the worker's unique id.
 func (worker * Worker) SetId(id string) (err os.Error) {
     job := NewWorkerJob(REQ, SET_CLIENT_ID, []byte(id))
     return worker.WriteJob(job)
 }
 
-// Exec
+// Execute the job. And send back the result.
 func (worker * Worker) exec(job *WorkerJob) (err os.Error) {
     jobdata := splitByteArray(job.Data, '\x00')
     job.Handle = string(jobdata[0])

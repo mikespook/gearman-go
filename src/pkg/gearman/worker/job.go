@@ -1,10 +1,16 @@
+// Copyright 2011 Xing Xing <mikespook@gmail.com> All rights reserved.
+// Use of this source code is governed by a MIT
+// license that can be found in the LICENSE file.
+
 package gearman
 
 import (
     "os"
+    "strconv"
 //    "log"
 )
 
+// Worker side job
 type WorkerJob struct {
     Data []byte
     Handle, UniqueId string
@@ -13,12 +19,14 @@ type WorkerJob struct {
     Job
 }
 
+// Create a new job
 func NewWorkerJob(magiccode, datatype uint32, data []byte) (job *WorkerJob) {
     return &WorkerJob{magicCode:magiccode,
         DataType: datatype,
         Data:data}
 }
 
+// Decode job from byte slice
 func DecodeWorkerJob(data []byte) (job *WorkerJob, err os.Error) {
     if len(data) < 12 {
         err = os.NewError("Data length is too small.")
@@ -35,6 +43,7 @@ func DecodeWorkerJob(data []byte) (job *WorkerJob, err os.Error) {
     return
 }
 
+// Encode a job to byte slice
 func (job *WorkerJob) Encode() (data []byte) {
     magiccode := uint32ToByte(job.magicCode)
     datatype := uint32ToByte(job.DataType)
@@ -54,7 +63,8 @@ func (job *WorkerJob) Encode() (data []byte) {
     return
 }
 
-// update data
+// Send some datas to client.
+// Using this in a job's executing.
 func (job * WorkerJob) UpdateData(data []byte, iswaring bool) (err os.Error) {
     result := append([]byte(job.Handle), 0)
     result = append(result, data ...)
@@ -67,13 +77,14 @@ func (job * WorkerJob) UpdateData(data []byte, iswaring bool) (err os.Error) {
     return job.client.WriteJob(NewWorkerJob(REQ, datatype, result))
 }
 
-// update status
-func (job * WorkerJob) UpdateStatus(numerator, denominator uint32) (err os.Error) {
-    n := uint32ToByte(numerator)
-    d := uint32ToByte(denominator)
+// Update status.
+// Tall client how many percent job has been executed.
+func (job * WorkerJob) UpdateStatus(numerator, denominator int) (err os.Error) {
+    n := []byte(strconv.Itoa(numerator))
+    d := []byte(strconv.Itoa(denominator))
     result := append([]byte(job.Handle), 0)
-    result = append(result, n[:] ...)
-    result = append(result, d[:] ...)
+    result = append(result, n ...)
+    result = append(result, d ...)
     return job.client.WriteJob(NewWorkerJob(REQ, WORK_STATUS, result))
 }
 
