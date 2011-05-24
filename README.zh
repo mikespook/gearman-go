@@ -1,0 +1,24 @@
+Go 语言的 Gearman API
+
+这是 Go 语言的 Gearman API。
+它使用 Go 语言原生实现了 Gearman 的 Worker 端和 Client 端 API 协议。
+
+- 安装
+  $ cd ./src/pkg/gearman/
+  $ make install
+
+- 例程
+  # example/worker.go
+  $ make worker
+  $ ./worker
+
+  # example/client.go
+  $ make client
+  $ ./client
+
+- 代码格式
+  gofmt -spaces=true -tabwidth=4 -w=true -tabindent=false $(DIR)
+----
+xingxing<mikespook@gmail.com>
+http://mikespook.com
+http://twitter.com/mikespook
