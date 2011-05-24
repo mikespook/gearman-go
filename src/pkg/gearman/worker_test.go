@@ -41,7 +41,7 @@ func TestWorkerAddFunction(t *testing.T) {
     }
 }
 
-func TestWorkerEcho(t * testing.T) {
+func TestWorkerEcho(t *testing.T) {
     if err := worker.Echo([]byte("Hello World")); err != nil {
         t.Error(err)
     }
@@ -56,13 +56,13 @@ func TestWorkerResult(t *testing.T) {
 }
 */
 
-func TestWorkerRemoveFunction(t * testing.T) {
+func TestWorkerRemoveFunction(t *testing.T) {
     if err := worker.RemoveFunction("foobar"); err != nil {
         t.Error(err)
     }
 }
 
-func TestWorkerReset(t * testing.T) {
+func TestWorkerReset(t *testing.T) {
     if err := worker.Reset(); err != nil {
         t.Error(err)
     }

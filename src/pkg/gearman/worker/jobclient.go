@@ -7,14 +7,14 @@ package gearman
 import (
     "net"
     "os"
-//    "log"
+    //    "log"
 )
 
 // The client of job server.
 type jobClient struct {
-    conn net.Conn
-    worker *Worker
-    running bool
+    conn     net.Conn
+    worker   *Worker
+    running  bool
     incoming chan []byte
 }
 
@@ -24,12 +24,12 @@ func newJobClient(addr string, worker *Worker) (jobclient *jobClient, err os.Err
     if err != nil {
         return nil, err
     }
-    jobclient = &jobClient{conn:conn, worker:worker, running:true, incoming: make(chan []byte, QUEUE_CAP)}
+    jobclient = &jobClient{conn: conn, worker: worker, running: true, incoming: make(chan []byte, QUEUE_CAP)}
     return jobclient, err
 }
 
 // Internal read
-func (client *jobClient) read() (data []byte, err os.Error){
+func (client *jobClient) read() (data []byte, err os.Error) {
     if len(client.incoming) > 0 {
         // incoming queue is not empty
         data = <-client.incoming
@@ -44,7 +44,7 @@ func (client *jobClient) read() (data []byte, err os.Error){
                 }
                 return
             }
-            data = append(data, buf[0: n] ...)
+            data = append(data, buf[0:n]...)
             if n < BUFFER_SIZE {
                 break
             }
@@ -53,7 +53,7 @@ func (client *jobClient) read() (data []byte, err os.Error){
     // split package
     start := 0
     tl := len(data)
-    for i := 0; i < tl; i ++{
+    for i := 0; i < tl; i++ {
         if string(data[start:start+4]) == RES_STR {
             l := int(byteToUint32([4]byte{data[start+8], data[start+9], data[start+10], data[start+11]}))
             total := l + 12
@@ -90,15 +90,15 @@ func (client *jobClient) Work() {
             client.worker.ErrQueue <- err
             continue
         } else {
-            switch(job.DataType) {
-                case NOOP:
-                    noop = true
-                case NO_JOB:
-                    noop = false
-                    client.WriteJob(NewWorkerJob(REQ, PRE_SLEEP, nil))
-                case ECHO_RES, JOB_ASSIGN_UNIQ, JOB_ASSIGN:
-                    job.client = client
-                    client.worker.incoming <- job
+            switch job.DataType {
+            case NOOP:
+                noop = true
+            case NO_JOB:
+                noop = false
+                client.WriteJob(NewWorkerJob(REQ, PRE_SLEEP, nil))
+            case ECHO_RES, JOB_ASSIGN_UNIQ, JOB_ASSIGN:
+                job.client = client
+                client.worker.incoming <- job
             }
         }
     }

@@ -16,6 +16,9 @@ It was implemented a native protocol for both worker and client API.
   $ make client
   $ ./client
 
+- Code format
+  gofmt -spaces=true -tabwidth=4 -w=true -tabindent=false $(DIR)
+
 ----
 xingxing<mikespook@gmail.com>
 http://mikespook.com

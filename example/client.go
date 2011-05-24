@@ -27,7 +27,7 @@ func main() {
             log.Println(string(data))
         }
     }
-    
+
     known, running, numerator, denominator, err := client.Status(handle)
     if err != nil {
         log.Println(err)
@@ -36,7 +36,7 @@ func main() {
         log.Println("Unknown")
     }
     if running {
-        log.Printf("%g%%\n", float32(numerator) * 100 / float32(denominator))
+        log.Printf("%g%%\n", float32(numerator)*100/float32(denominator))
     } else {
         log.Println("Not running")
     }

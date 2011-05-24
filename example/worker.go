@@ -26,21 +26,21 @@ func main() {
             var str string
             fmt.Scan(&str)
             switch str {
-                case "echo":
-                    worker.Echo([]byte("Hello world!"))
-                    var job *gearman.WorkerJob
-                    for job = <-worker.JobQueue; job.DataType != gearman.ECHO_RES; job = <-worker.JobQueue {
-                        log.Println(job)
-                    }
-                    log.Println(string(job.Data))
-                case "quit":
-                    worker.Close()
-                    return
-                case "result":
-                    job := <-worker.JobQueue
-                    log.Println(string(job.Data))
-                default:
-                    log.Println("Unknown command")
+            case "echo":
+                worker.Echo([]byte("Hello world!"))
+                var job *gearman.WorkerJob
+                for job = <-worker.JobQueue; job.DataType != gearman.ECHO_RES; job = <-worker.JobQueue {
+                    log.Println(job)
+                }
+                log.Println(string(job.Data))
+            case "quit":
+                worker.Close()
+                return
+            case "result":
+                job := <-worker.JobQueue
+                log.Println(string(job.Data))
+            default:
+                log.Println("Unknown command")
             }
         }
     }()

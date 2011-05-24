@@ -8,7 +8,7 @@ import (
     "os"
     "net"
     "sync"
-//    "log"
+    //    "log"
     "strconv"
 )
 
@@ -22,18 +22,18 @@ usage:
 
 */
 type Client struct {
-    mutex sync.Mutex
-    conn net.Conn
+    mutex    sync.Mutex
+    conn     net.Conn
     JobQueue chan *ClientJob
     incoming chan []byte
-    UId uint32
+    UId      uint32
 }
 
 // Create a new client.
-func NewClient() (client * Client){
-    client = &Client{JobQueue:make(chan *ClientJob, QUEUE_CAP),
-        incoming:make(chan []byte, QUEUE_CAP),
-        UId:1}
+func NewClient() (client *Client) {
+    client = &Client{JobQueue: make(chan *ClientJob, QUEUE_CAP),
+        incoming: make(chan []byte, QUEUE_CAP),
+        UId:      1}
     return
 }
 
@@ -60,12 +60,12 @@ func (client *Client) read() (data []byte, err os.Error) {
             buf := make([]byte, BUFFER_SIZE)
             var n int
             if n, err = client.conn.Read(buf); err != nil {
-                if (err == os.EOF && n == 0) {
+                if err == os.EOF && n == 0 {
                     break
                 }
                 return
             }
-            data = append(data, buf[0: n] ...)
+            data = append(data, buf[0:n]...)
             if n < BUFFER_SIZE {
                 break
             }
@@ -74,7 +74,7 @@ func (client *Client) read() (data []byte, err os.Error) {
     // split package
     start, end := 0, 4
     tl := len(data)
-    for i := 0; i < tl; i ++{
+    for i := 0; i < tl; i++ {
         if string(data[start:end]) == RES_STR {
             l := int(byteToUint32([4]byte{data[start+8], data[start+9], data[start+10], data[start+11]}))
             total := l + 12
@@ -104,12 +104,12 @@ func (client *Client) ReadJob() (job *ClientJob, err os.Error) {
     if job, err = DecodeClientJob(rel); err != nil {
         return
     } else {
-        switch(job.DataType) {
-            case ERROR:
-                _, err = getError(job.Data)
-                return
-            case WORK_DATA, WORK_WARNING, WORK_STATUS, WORK_COMPLETE, WORK_FAIL, WORK_EXCEPTION:
-                client.JobQueue <- job
+        switch job.DataType {
+        case ERROR:
+            _, err = getError(job.Data)
+            return
+        case WORK_DATA, WORK_WARNING, WORK_STATUS, WORK_COMPLETE, WORK_FAIL, WORK_EXCEPTION:
+            client.JobQueue <- job
         }
     }
     return
@@ -123,34 +123,34 @@ func (client *Client) ReadJob() (job *ClientJob, err os.Error) {
 // JOB_LOW | JOB_BG means the job is running with low level in background.
 func (client *Client) Do(funcname string, data []byte, flag byte) (handle string, err os.Error) {
     var datatype uint32
-    if flag & JOB_LOW == JOB_LOW {
-        if flag & JOB_BG == JOB_BG {
+    if flag&JOB_LOW == JOB_LOW {
+        if flag&JOB_BG == JOB_BG {
             datatype = SUBMIT_JOB_LOW_BG
         } else {
             datatype = SUBMIT_JOB_LOW
         }
-    } else if flag & JOB_HIGH == JOB_HIGH {
-        if flag & JOB_BG == JOB_BG {
+    } else if flag&JOB_HIGH == JOB_HIGH {
+        if flag&JOB_BG == JOB_BG {
             datatype = SUBMIT_JOB_HIGH_BG
         } else {
             datatype = SUBMIT_JOB_HIGH
         }
-    } else if flag & JOB_BG == JOB_BG {
+    } else if flag&JOB_BG == JOB_BG {
         datatype = SUBMIT_JOB_BG
     } else {
         datatype = SUBMIT_JOB
     }
 
-    rel := make([]byte, 0, 1024 * 64)
-    rel = append(rel, []byte(funcname) ...)
+    rel := make([]byte, 0, 1024*64)
+    rel = append(rel, []byte(funcname)...)
     rel = append(rel, '\x00')
     client.mutex.Lock()
     uid := strconv.Itoa(int(client.UId))
-    client.UId ++
-    rel = append(rel, []byte(uid) ...)
+    client.UId++
+    rel = append(rel, []byte(uid)...)
     client.mutex.Unlock()
     rel = append(rel, '\x00')
-    rel = append(rel, data ...)
+    rel = append(rel, data...)
     if err = client.WriteJob(NewClientJob(REQ, datatype, rel)); err != nil {
         return
     }
@@ -160,16 +160,16 @@ func (client *Client) Do(funcname string, data []byte, flag byte) (handle string
     }
     handle = string(job.Data)
     go func() {
-        if flag & JOB_BG != JOB_BG {
+        if flag&JOB_BG != JOB_BG {
             for {
                 if job, err = client.ReadJob(); err != nil {
                     return
                 }
                 switch job.DataType {
-                    case WORK_DATA, WORK_WARNING:
-                    case WORK_STATUS:
-                    case WORK_COMPLETE, WORK_FAIL, WORK_EXCEPTION:
-                        return
+                case WORK_DATA, WORK_WARNING:
+                case WORK_STATUS:
+                case WORK_COMPLETE, WORK_FAIL, WORK_EXCEPTION:
+                    return
                 }
             }
         }
@@ -178,7 +178,7 @@ func (client *Client) Do(funcname string, data []byte, flag byte) (handle string
 }
 
 // Internal read last job
-func (client *Client) readLastJob(datatype uint32) (job *ClientJob, err os.Error){
+func (client *Client) readLastJob(datatype uint32) (job *ClientJob, err os.Error) {
     for {
         if job, err = client.ReadJob(); err != nil {
             return
@@ -200,7 +200,7 @@ func (client *Client) Status(handle string) (known, running bool, numerator, den
     if err = client.WriteJob(NewClientJob(REQ, GET_STATUS, []byte(handle))); err != nil {
         return
     }
-    var job * ClientJob
+    var job *ClientJob
     if job, err = client.readLastJob(STATUS_RES); err != nil {
         return
     }
@@ -245,7 +245,7 @@ func (client *Client) LastJob() (job *ClientJob) {
         if l == 0 {
             return
         }
-        for i := 0; i < l - 1; i ++ {
+        for i := 0; i < l-1; i++ {
             <-client.JobQueue
         }
     }

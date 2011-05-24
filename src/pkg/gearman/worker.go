@@ -4,10 +4,10 @@
 
 package gearman
 
-import(
+import (
     "os"
     "sync"
-//    "log"
+    //    "log"
 )
 
 // The definition of the callback function.
@@ -32,14 +32,14 @@ func foobar(job *WorkerJob) (data []byte, err os.Error) {
     //plaplapla...
     return
 }
-*/ 
+*/
 type Worker struct {
-    clients []*jobClient
+    clients   []*jobClient
     functions JobFunctionMap
 
-    running bool
+    running  bool
     incoming chan *WorkerJob
-    mutex sync.Mutex
+    mutex    sync.Mutex
     JobQueue chan *WorkerJob
     ErrQueue chan os.Error
 }
@@ -48,20 +48,20 @@ type Worker struct {
 func NewWorker() (worker *Worker) {
     worker = &Worker{
         // job server list
-        clients:make([]*jobClient, 0, WORKER_SERVER_CAP),
+        clients: make([]*jobClient, 0, WORKER_SERVER_CAP),
         // function list
         functions: make(JobFunctionMap),
-        incoming: make(chan *WorkerJob, QUEUE_CAP),
-        JobQueue: make(chan *WorkerJob, QUEUE_CAP),
-        ErrQueue: make(chan os.Error, QUEUE_CAP),
-        running: true,
+        incoming:  make(chan *WorkerJob, QUEUE_CAP),
+        JobQueue:  make(chan *WorkerJob, QUEUE_CAP),
+        ErrQueue:  make(chan os.Error, QUEUE_CAP),
+        running:   true,
     }
     return
 }
 
 // Add a server. The addr should be 'host:port' format.
 // The connection is established at this time.
-func (worker * Worker) AddServer(addr string) (err os.Error) {
+func (worker *Worker) AddServer(addr string) (err os.Error) {
     worker.mutex.Lock()
     defer worker.mutex.Unlock()
 
@@ -76,7 +76,7 @@ func (worker * Worker) AddServer(addr string) (err os.Error) {
     }
 
     n := len(worker.clients)
-    worker.clients = worker.clients[0: n + 1]
+    worker.clients = worker.clients[0 : n+1]
     worker.clients[n] = server
     return
 }
@@ -85,8 +85,8 @@ func (worker * Worker) AddServer(addr string) (err os.Error) {
 // Add a function.
 // Plz added job servers first, then functions.
 // The API will tell every connected job server that 'I can do this'
-func (worker * Worker) AddFunction(funcname string,
-    f JobFunction, timeout uint32) (err os.Error) {
+func (worker *Worker) AddFunction(funcname string,
+f JobFunction, timeout uint32) (err os.Error) {
     if len(worker.clients) < 1 {
         return os.NewError("Did not connect to Job Server.")
     }
@@ -103,7 +103,7 @@ func (worker * Worker) AddFunction(funcname string,
         datatype = CAN_DO_TIMEOUT
         data = []byte(funcname + "\x00")
         t := uint32ToByte(timeout)
-        data = append(data, t[:] ...)
+        data = append(data, t[:]...)
     }
     job := NewWorkerJob(REQ, datatype, data)
     worker.WriteJob(job)
@@ -112,7 +112,7 @@ func (worker * Worker) AddFunction(funcname string,
 
 // Remove a function.
 // Tell job servers 'I can not do this now' at the same time.
-func (worker * Worker) RemoveFunction(funcname string) (err os.Error) {
+func (worker *Worker) RemoveFunction(funcname string) (err os.Error) {
     worker.mutex.Lock()
     defer worker.mutex.Unlock()
 
@@ -126,31 +126,31 @@ func (worker * Worker) RemoveFunction(funcname string) (err os.Error) {
 }
 
 // Main loop
-func (worker * Worker) Work() {
+func (worker *Worker) Work() {
     for _, v := range worker.clients {
         go v.Work()
     }
     for worker.running {
         select {
-            case job := <-worker.incoming:
-                if job == nil {
-                    break
-                }
-                switch job.DataType {
-                    case NO_JOB:
-                        // do nothing
-                    case ERROR:
-                        _, err := getError(job.Data)
+        case job := <-worker.incoming:
+            if job == nil {
+                break
+            }
+            switch job.DataType {
+            case NO_JOB:
+                // do nothing
+            case ERROR:
+                _, err := getError(job.Data)
+                worker.ErrQueue <- err
+            case JOB_ASSIGN, JOB_ASSIGN_UNIQ:
+                go func() {
+                    if err := worker.exec(job); err != nil {
                         worker.ErrQueue <- err
-                    case JOB_ASSIGN, JOB_ASSIGN_UNIQ:
-                        go func() {
-                            if err := worker.exec(job); err != nil {
-                                worker.ErrQueue <- err
-                            }
-                        }()
-                    default:
-                        worker.JobQueue <- job
-                }
+                    }
+                }()
+            default:
+                worker.JobQueue <- job
+            }
         }
     }
 }
@@ -159,12 +159,12 @@ func (worker * Worker) Work() {
 // If there are more than one job in the queue, 
 // the last one will be returned,
 // the others will be lost.
-func (worker * Worker) LastJob() (job *WorkerJob) {
+func (worker *Worker) LastJob() (job *WorkerJob) {
     if l := len(worker.JobQueue); l != 1 {
         if l == 0 {
             return
         }
-        for i := 0; i < l - 1; i ++ {
+        for i := 0; i < l-1; i++ {
             <-worker.JobQueue
         }
     }
@@ -172,7 +172,7 @@ func (worker * Worker) LastJob() (job *WorkerJob) {
 }
 
 // Close.
-func (worker * Worker) Close() (err os.Error){
+func (worker *Worker) Close() (err os.Error) {
     worker.running = false
     for _, v := range worker.clients {
         err = v.Close()
@@ -184,25 +184,25 @@ func (worker * Worker) Close() (err os.Error){
 // Write a job to job server.
 // Here, the job's mean is not the oraginal mean.
 // Just looks like a network package for job's result or tell job server, there was a fail.
-func (worker * Worker) WriteJob(job *WorkerJob) (err os.Error) {
+func (worker *Worker) WriteJob(job *WorkerJob) (err os.Error) {
     e := make(chan os.Error)
     for _, v := range worker.clients {
         go func() {
             e <- v.WriteJob(job)
         }()
     }
-    return <- e
+    return <-e
 }
 
 // Send a something out, get the samething back.
-func (worker * Worker) Echo(data []byte) (err os.Error) {
+func (worker *Worker) Echo(data []byte) (err os.Error) {
     job := NewWorkerJob(REQ, ECHO_REQ, data)
     return worker.WriteJob(job)
 }
 
 // Remove all of functions.
 // Both from the worker or job servers.
-func (worker * Worker) Reset() (err os.Error){
+func (worker *Worker) Reset() (err os.Error) {
     job := NewWorkerJob(REQ, RESET_ABILITIES, nil)
     err = worker.WriteJob(job)
     worker.functions = make(JobFunctionMap)
@@ -210,13 +210,13 @@ func (worker * Worker) Reset() (err os.Error){
 }
 
 // Set the worker's unique id.
-func (worker * Worker) SetId(id string) (err os.Error) {
+func (worker *Worker) SetId(id string) (err os.Error) {
     job := NewWorkerJob(REQ, SET_CLIENT_ID, []byte(id))
     return worker.WriteJob(job)
 }
 
 // Execute the job. And send back the result.
-func (worker * Worker) exec(job *WorkerJob) (err os.Error) {
+func (worker *Worker) exec(job *WorkerJob) (err os.Error) {
     jobdata := splitByteArray(job.Data, '\x00')
     job.Handle = string(jobdata[0])
     funcname := string(jobdata[1])
@@ -234,7 +234,7 @@ func (worker * Worker) exec(job *WorkerJob) (err os.Error) {
     var datatype uint32
     if err == nil {
         datatype = WORK_COMPLETE
-    } else{
+    } else {
         if result == nil {
             datatype = WORK_FAIL
         } else {
