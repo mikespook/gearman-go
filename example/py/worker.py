@@ -1,20 +1,18 @@
 #!/usr/bin/python
 import time
 
-from gearman import libgearman
+import gearman
 
 
-def toUpper(job):
-    r = job.get_workload().upper()
+def toUpper(worker, job):
+    r = job.data.upper()
     print r
     return r
 
 def main():
-    worker = libgearman.Worker()
-    worker.add_server("127.0.0.1", 4730)
-    worker.add_function("ToUpper", toUpper)
-    while True:
-        worker.work()
+    worker = gearman.GearmanWorker(['localhost:4730'])
+    worker.register_task('ToUpper', toUpper)
+    worker.work()
 
 if __name__ == '__main__':
     main()

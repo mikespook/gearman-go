@@ -15,6 +15,7 @@ type jobClient struct {
     conn net.Conn
     worker *Worker
     running bool
+    incoming chan []byte
 }
 
 // Create the client of job server.
@@ -23,33 +24,66 @@ func newJobClient(addr string, worker *Worker) (jobclient *jobClient, err os.Err
     if err != nil {
         return nil, err
     }
-    jobclient = &jobClient{conn:conn, worker:worker, running:true}
+    jobclient = &jobClient{conn:conn, worker:worker, running:true, incoming: make(chan []byte, QUEUE_CAP)}
     return jobclient, err
+}
+
+// Internal read
+func (client *jobClient) read() (data []byte, err os.Error){
+    if len(client.incoming) > 0 {
+        // incoming queue is not empty
+        data = <-client.incoming
+    } else {
+        for {
+            buf := make([]byte, BUFFER_SIZE)
+            var n int
+            if n, err = client.conn.Read(buf); err != nil {
+                if err == os.EOF && n == 0 {
+                    err = nil
+                    return
+                }
+                return
+            }
+            data = append(data, buf[0: n] ...)
+            if n < BUFFER_SIZE {
+                break
+            }
+        }
+    }
+    // split package
+    start := 0
+    tl := len(data)
+    for i := 0; i < tl; i ++{
+        if string(data[start:start+4]) == RES_STR {
+            l := int(byteToUint32([4]byte{data[start+8], data[start+9], data[start+10], data[start+11]}))
+            total := l + 12
+            if total == tl {
+                return
+            } else {
+                client.incoming <- data[total:]
+                data = data[:total]
+                return
+            }
+        } else {
+            start++
+        }
+    }
+    err = os.NewError("Invalid data struct.")
+    return
 }
 
 // Main loop.
 func (client *jobClient) Work() {
     noop := true
-    OUT: for client.running {
-        // grab job
-        if noop {
+    for client.running {
+        // got noop msg and incoming queue is zero, grab job
+        if noop && len(client.incoming) == 0 {
             client.WriteJob(NewWorkerJob(REQ, GRAB_JOB, nil))
         }
-        var rel []byte
-        for {
-            buf := make([]byte, BUFFER_SIZE)
-            n, err := client.conn.Read(buf)
-            if err != nil {
-                if err == os.EOF && n == 0 {
-                    break
-                }
-                client.worker.ErrQueue <- err
-                continue OUT
-            }
-            rel = append(rel, buf[0: n] ...)
-            if n < BUFFER_SIZE {
-                break
-            }
+        rel, err := client.read()
+        if err != nil {
+            client.worker.ErrQueue <- err
+            continue
         }
         job, err := DecodeWorkerJob(rel)
         if err != nil {
@@ -91,6 +125,7 @@ func (client *jobClient) Write(buf []byte) (err os.Error) {
 // Close.
 func (client *jobClient) Close() (err os.Error) {
     client.running = false
+    close(client.incoming)
     err = client.conn.Close()
     return
 }

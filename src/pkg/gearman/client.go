@@ -73,11 +73,12 @@ func (client *Client) read() (data []byte, err os.Error) {
     }
     // split package
     start, end := 0, 4
-    for i := 0; i < len(data); i ++{
+    tl := len(data)
+    for i := 0; i < tl; i ++{
         if string(data[start:end]) == RES_STR {
             l := int(byteToUint32([4]byte{data[start+8], data[start+9], data[start+10], data[start+11]}))
             total := l + 12
-            if total == len(data) {
+            if total == tl {
                 return
             } else {
                 client.incoming <- data[total:]
