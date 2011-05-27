@@ -107,11 +107,11 @@ func (client *jobClient) Work() {
 
 // Send a job to the job server.
 func (client *jobClient) WriteJob(job *WorkerJob) (err os.Error) {
-    return client.Write(job.Encode())
+    return client.write(job.Encode())
 }
 
-// Write the encoded job.
-func (client *jobClient) Write(buf []byte) (err os.Error) {
+// Internal write the encoded job.
+func (client *jobClient) write(buf []byte) (err os.Error) {
     var n int
     for i := 0; i < len(buf); i += n {
         n, err = client.conn.Write(buf[i:])
