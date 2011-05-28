@@ -65,7 +65,7 @@ func (job *ClientJob) Result() (data []byte, err os.Error) {
         err = os.NewError("Work exception.")
         fallthrough
     case WORK_COMPLETE:
-        s := splitByteArray(job.Data, '\x00')
+        s := splitByteArray(job.Data, '\x00', 2)
         if len(s) != 2 {
             err = os.NewError("Invalid data.")
             return
@@ -84,7 +84,7 @@ func (job *ClientJob) Update() (data []byte, err os.Error) {
         err = os.NewError("The job is not a update.")
         return
     }
-    s := splitByteArray(job.Data, '\x00')
+    s := splitByteArray(job.Data, '\x00', 2)
     if len(s) != 2 {
         err = os.NewError("Invalid data.")
         return

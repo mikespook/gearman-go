@@ -217,7 +217,13 @@ func (worker *Worker) SetId(id string) (err os.Error) {
 
 // Execute the job. And send back the result.
 func (worker *Worker) exec(job *WorkerJob) (err os.Error) {
-    jobdata := splitByteArray(job.Data, '\x00')
+    var limit int
+    if job.DataType == JOB_ASSIGN {
+        limit = 3
+    } else {
+        limit = 4
+    }
+    jobdata := splitByteArray(job.Data, '\x00', limit)
     job.Handle = string(jobdata[0])
     funcname := string(jobdata[1])
     if job.DataType == JOB_ASSIGN {
