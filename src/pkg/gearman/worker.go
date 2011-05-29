@@ -7,6 +7,7 @@ package gearman
 import (
     "os"
     "sync"
+    "bytes"
     //    "log"
 )
 
@@ -223,7 +224,7 @@ func (worker *Worker) exec(job *WorkerJob) (err os.Error) {
     } else {
         limit = 4
     }
-    jobdata := splitByteArray(job.Data, '\x00', limit)
+    jobdata := bytes.Split(job.Data, []byte{'\x00'}, limit)
     job.Handle = string(jobdata[0])
     funcname := string(jobdata[1])
     if job.DataType == JOB_ASSIGN {

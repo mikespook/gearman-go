@@ -10,6 +10,7 @@ import (
     "sync"
     //    "log"
     "strconv"
+    "bytes"
 )
 
 /* 
@@ -204,7 +205,7 @@ func (client *Client) Status(handle string) (known, running bool, numerator, den
     if job, err = client.readLastJob(STATUS_RES); err != nil {
         return
     }
-    data := splitByteArray(job.Data, '\x00', 5)
+    data := bytes.Split(job.Data, []byte{'\x00'}, 5)
     if len(data) != 5 {
         err = os.NewError("Data Error.")
         return

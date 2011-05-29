@@ -10,6 +10,7 @@ The protocol was implemented by native way.
 package gearman
 
 import (
+    "bytes"
     "os"
 )
 
@@ -84,31 +85,9 @@ type Job interface {
     Encode() []byte
 }
 
-// Splite the byte array by a byte
-func splitByteArray(slice []byte, spot byte, limit int) (data [][]byte) {
-    data = make([][]byte, 0, 10)
-    start, end := 0, 0
-    for i, v := range slice {
-        if v == spot {
-            if start != end {
-                data = append(data, slice[start:end])
-                if (limit > 0) && (limit - 1 == len(data)) {
-                    start = end
-                    break
-                }
-            }
-            start, end = i+1, i+1
-        } else {
-            end++
-        }
-    }
-    data = append(data, slice[start:])
-    return
-}
-
 // Extract the error message
 func getError(data []byte) (eno os.Errno, err os.Error) {
-    rel := splitByteArray(data, '\x00', 2)
+    rel := bytes.Split(data, []byte{'\x00'}, 2)
     if len(rel) != 2 {
         err = os.NewError("The input is not a error data.")
         return
