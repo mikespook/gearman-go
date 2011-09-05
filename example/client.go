@@ -9,7 +9,7 @@ func main() {
     client := gearman.NewClient()
     defer client.Close()
     client.AddServer("127.0.0.1:4730")
-    echo := []byte("Hello\x00world")
+    echo := []byte("Hello\x00 world")
 
     if data, err := client.Echo(echo); err != nil {
         log.Println(string(data))
