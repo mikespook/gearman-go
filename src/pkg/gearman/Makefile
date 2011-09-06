@@ -4,13 +4,13 @@
 
 include $(GOROOT)/src/Make.inc
 
-TARG=gearman
+TARG=bitbucket.org/mikespook/gearman-go/src/pkg/gearman
 GOFILES=\
 	gearman.go\
-	worker/job.go\
-	worker/jobclient.go\
+	worker_job.go\
+	worker_jobclient.go\
 	worker.go\
-	client/job.go\
+	client_job.go\
 	client.go\
 
 CLEANFILES+=gearman_test
