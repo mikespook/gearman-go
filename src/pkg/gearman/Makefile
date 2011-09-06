@@ -4,7 +4,7 @@
 
 include $(GOROOT)/src/Make.inc
 
-TARG=bitbucket.org/mikespook/gearman-go/src/pkg/gearman
+TARG=gearman
 GOFILES=\
 	gearman.go\
 	worker_job.go\
