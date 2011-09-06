@@ -27,7 +27,6 @@ func foobar(job *WorkerJob) ([]byte, os.Error) {
     return nil, nil
 }
 
-
 func TestWorkerAddFunction(t *testing.T) {
     if err := worker.AddFunction("foobar", foobar, 0); err != nil {
         t.Error(err)
