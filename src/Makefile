@@ -17,9 +17,5 @@ CLEANFILES+=gearman_test
 
 include $(GOROOT)/src/Make.pkg
 
-%: install %.go
-	$(GC) $*.go
-	$(LD) -o $@ $*.$O
-
 fmt:
 	gofmt -spaces=true -tabwidth=4 -w=true -tabindent=false ./

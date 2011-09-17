@@ -4,7 +4,7 @@ This module is Gearman API for golang.
 It was implemented a native protocol for both worker and client API.
 
 - INSTALL
-  $ cd ./src/pkg/gearman/
+  $ cd ./src/
   $ make install
 
 - SAMPLE OF USAGE

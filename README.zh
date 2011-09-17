@@ -4,7 +4,7 @@ Go 语言的 Gearman API
 它使用 Go 语言原生实现了 Gearman 的 Worker 端和 Client 端 API 协议。
 
 - 安装
-  $ cd ./src/pkg/gearman/
+  $ cd ./src
   $ make install
 
 - 例程
