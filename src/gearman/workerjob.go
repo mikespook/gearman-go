@@ -7,7 +7,6 @@ package gearman
 import (
     "os"
     "strconv"
-    //    "log"
 )
 
 // Worker side job
@@ -16,7 +15,6 @@ type WorkerJob struct {
     Handle, UniqueId    string
     client              *jobClient
     magicCode, DataType uint32
-    Job
 }
 
 // Create a new job

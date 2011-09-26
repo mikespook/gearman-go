@@ -79,11 +79,6 @@ const (
     JOB_HIGH = 4
 )
 
-// No use
-type Job interface {
-    Encode() []byte
-}
-
 // Extract the error message
 func getError(data []byte) (eno os.Errno, err os.Error) {
     rel := bytes.SplitN(data, []byte{'\x00'}, 2)

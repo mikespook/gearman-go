@@ -8,7 +8,6 @@ import (
     "os"
     "sync"
     "bytes"
-    //    "log"
 )
 
 // The definition of the callback function.
@@ -67,7 +66,7 @@ func (worker *Worker) AddServer(addr string) (err os.Error) {
     defer worker.mutex.Unlock()
 
     if len(worker.clients) == cap(worker.clients) {
-        return os.NewError("There were too many clients.")
+        return os.NewError("To many servers added.")
     }
 
     // Create a new job server's client as a agent of server
