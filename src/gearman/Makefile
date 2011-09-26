@@ -7,10 +7,10 @@ include $(GOROOT)/src/Make.inc
 TARG=gearman
 GOFILES=\
 	gearman.go\
-	worker/job.go\
-	worker/jobclient.go\
+	workerjob.go\
+	jobclient.go\
 	worker.go\
-	client/job.go\
+	clientjob.go\
 	client.go\
 
 CLEANFILES+=gearman_test
