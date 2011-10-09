@@ -8,29 +8,31 @@ import (
 func main() {
     client := gearman.NewClient()
     defer client.Close()
-    client.AddServer("127.0.0.1:4730")
+    if err := client.AddServer("127.0.0.1:4730"); err != nil {
+        log.Fatalln(err)
+    }
     echo := []byte("Hello\x00 world")
 
     if data, err := client.Echo(echo); err != nil {
-        log.Println(string(data))
+        log.Fatalln(string(data))
     }
 
     handle, err := client.Do("ToUpper", echo, gearman.JOB_NORMAL)
     if err != nil {
-        log.Println(err)
+        log.Fatalln(err)
     } else {
         log.Println(handle)
-        job := <-client.JobQueue
+        /*job := <-client.JobQueue
         if data, err := job.Result(); err != nil {
-            log.Println(err)
+            log.Fatalln(err)
         } else {
             log.Println(string(data))
-        }
+        }*/
     }
 
     known, running, numerator, denominator, err := client.Status(handle)
     if err != nil {
-        log.Println(err)
+        log.Fatalln(err)
     }
     if !known {
         log.Println("Unknown")
