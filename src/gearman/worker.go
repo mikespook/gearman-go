@@ -34,7 +34,7 @@ func foobar(job *WorkerJob) (data []byte, err os.Error) {
 }
 */
 type Worker struct {
-    clients   []*jobClient
+    clients   []*jobAgent
     functions JobFunctionMap
 
     running  bool
@@ -48,7 +48,7 @@ type Worker struct {
 func NewWorker() (worker *Worker) {
     worker = &Worker{
         // job server list
-        clients: make([]*jobClient, 0, WORKER_SERVER_CAP),
+        clients: make([]*jobAgent, 0, WORKER_SERVER_CAP),
         // function list
         functions: make(JobFunctionMap),
         incoming:  make(chan *WorkerJob, QUEUE_CAP),
@@ -70,7 +70,7 @@ func (worker *Worker) AddServer(addr string) (err os.Error) {
     }
 
     // Create a new job server's client as a agent of server
-    server, err := newJobClient(addr, worker)
+    server, err := newJobAgent(addr, worker)
     if err != nil {
         return err
     }

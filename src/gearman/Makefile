@@ -8,7 +8,7 @@ TARG=gearman
 GOFILES=\
 	gearman.go\
 	workerjob.go\
-	jobclient.go\
+	jobagent.go\
 	worker.go\
 	clientjob.go\
 	client.go\

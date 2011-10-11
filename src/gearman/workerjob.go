@@ -13,7 +13,7 @@ import (
 type WorkerJob struct {
     Data                []byte
     Handle, UniqueId    string
-    client              *jobClient
+    agent              *jobAgent
     magicCode, DataType uint32
 }
 
@@ -72,7 +72,7 @@ func (job *WorkerJob) UpdateData(data []byte, iswaring bool) (err os.Error) {
     } else {
         datatype = WORK_DATA
     }
-    return job.client.WriteJob(NewWorkerJob(REQ, datatype, result))
+    return job.agent.WriteJob(NewWorkerJob(REQ, datatype, result))
 }
 
 // Update status.
@@ -83,5 +83,5 @@ func (job *WorkerJob) UpdateStatus(numerator, denominator int) (err os.Error) {
     result := append([]byte(job.Handle), 0)
     result = append(result, n...)
     result = append(result, d...)
-    return job.client.WriteJob(NewWorkerJob(REQ, WORK_STATUS, result))
+    return job.agent.WriteJob(NewWorkerJob(REQ, WORK_STATUS, result))
 }
