@@ -22,12 +22,12 @@ func main() {
         log.Fatalln(err)
     } else {
         log.Println(handle)
-        /*job := <-client.JobQueue
+        job := <-client.JobQueue
         if data, err := job.Result(); err != nil {
             log.Fatalln(err)
         } else {
             log.Println(string(data))
-        }*/
+        }
     }
 
     known, running, numerator, denominator, err := client.Status(handle)
