@@ -1,47 +1,48 @@
 package main
 
 import (
-	"fmt"
-	"gearman"
-	"log"
-	"strings"
+    "bitbucket.org/mikespook/gearman-go/gearman"
+    "bitbucket.org/mikespook/gearman-go/gearman/worker"
+    "fmt"
+    "log"
+    "strings"
 )
 
-func ToUpper(job *gearman.WorkerJob) ([]byte, error) {
-	data := []byte(strings.ToUpper(string(job.Data)))
-	return data, nil
+func ToUpper(job *worker.WorkerJob) ([]byte, error) {
+    data := []byte(strings.ToUpper(string(job.Data)))
+    return data, nil
 }
 
 func main() {
-	worker := gearman.NewWorker()
-	worker.AddServer("127.0.0.1:4730")
-	worker.AddFunction("ToUpper", ToUpper, 0)
-	worker.AddFunction("ToUpperTimeOut5", ToUpper, 5)
+    w := worker.NewWorker()
+    defer w.Close()
+    w.AddServer("127.0.0.1:4730")
+    w.AddFunction("ToUpper", ToUpper, 0)
+    w.AddFunction("ToUpperTimeOut5", ToUpper, 5)
 
-	go func() {
-		log.Println("start worker")
-		for {
-			print("cmd: ")
-			var str string
-			fmt.Scan(&str)
-			switch str {
-			case "echo":
-				worker.Echo([]byte("Hello world!"))
-				var job *gearman.WorkerJob
-				for job = <-worker.JobQueue; job.DataType != gearman.ECHO_RES; job = <-worker.JobQueue {
-					log.Println(job)
-				}
-				log.Println(string(job.Data))
-			case "quit":
-				worker.Close()
-				return
-			case "result":
-				job := <-worker.JobQueue
-				log.Println(string(job.Data))
-			default:
-				log.Println("Unknown command")
-			}
-		}
-	}()
-	worker.Work()
+    go func() {
+        log.Println("start worker")
+        for {
+            print("cmd: ")
+            var str string
+            fmt.Scan(&str)
+            switch str {
+            case "echo":
+                w.Echo([]byte("Hello world!"))
+                var job *worker.WorkerJob
+                for job = <-w.JobQueue; job.DataType != gearman.ECHO_RES; job = <-w.JobQueue {
+                    log.Println(job)
+                }
+                log.Println(string(job.Data))
+            case "quit":
+                return
+            case "result":
+                job := <-w.JobQueue
+                log.Println(string(job.Data))
+            default:
+                log.Println("Unknown command")
+            }
+        }
+    }()
+    w.Work()
 }

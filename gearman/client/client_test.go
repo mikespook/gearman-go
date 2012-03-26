@@ -1,8 +1,8 @@
-package gearman
+package client
 
 import (
+    "bitbucket.org/mikespook/gearman-go/gearman"
     "testing"
-    //    "os"
 )
 
 var client *Client
@@ -27,7 +27,7 @@ func TestClientEcho(t *testing.T) {
 }
 
 func TestClientDo(t *testing.T) {
-    if handle, err := client.Do("ToUpper", []byte("abcdef"), JOB_LOW|JOB_BG); err != nil {
+    if handle, err := client.Do("ToUpper", []byte("abcdef"), gearman.JOB_LOW|gearman.JOB_BG); err != nil {
         t.Error(err)
     } else {
         t.Log(handle)

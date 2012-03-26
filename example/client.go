@@ -1,12 +1,13 @@
 package main
 
 import (
-    "gearman"
+    "bitbucket.org/mikespook/gearman-go/gearman"
+    "bitbucket.org/mikespook/gearman-go/gearman/client"
     "log"
 )
 
 func main() {
-    client := gearman.NewClient()
+    client := client.NewClient()
     defer client.Close()
     if err := client.AddServer("127.0.0.1:4730"); err != nil {
         log.Fatalln(err)
