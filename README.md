@@ -1,10 +1,11 @@
 # Gearman API for golang
 
-This module is Gearman API for golang. 
-It was implemented a native protocol for both worker and client API.
+This module is Gearman API for golang. It was implemented a native 
+protocol for both worker and client API.
 
-Copyright 2012 Xing Xing <mikespook@gmail.com> All rights reserved.
-Use of this source code is governed by a MIT license that can be found in the LICENSE file.
+Copyright 2012 Xing Xing <mikespook@gmail.com> All rights reserved. 
+Use of this source code is governed by a MIT license that can be found
+in the LICENSE file.
 
 # INSTALL
 
@@ -26,13 +27,17 @@ This will install the client and the worker automatically:
 ## Worker
 
 > $ cd example
+>
 > $ go build worker
+>
 > $ ./worker
 
 ## Client
 
 > $ cd example
+>
 > $ go build client
+>
 > $ ./client
 
 # Code format
@@ -42,5 +47,7 @@ This will install the client and the worker automatically:
 # Contacts
 
 xingxing<mikespook@gmail.com>
+
 http://mikespook.com
+
 http://twitter.com/mikespook
