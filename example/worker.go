@@ -3,6 +3,7 @@ package main
 import (
     "bitbucket.org/mikespook/gearman-go/gearman"
     "bitbucket.org/mikespook/gearman-go/gearman/worker"
+    "bitbucket.org/mikespook/golib/util"
     "fmt"
     "log"
     "strings"
@@ -14,11 +15,17 @@ func ToUpper(job *worker.WorkerJob) ([]byte, error) {
 }
 
 func main() {
-    w := worker.NewWorker()
-    defer w.Close()
+    w := worker.New()
     w.AddServer("127.0.0.1:4730")
     w.AddFunction("ToUpper", ToUpper, 0)
     w.AddFunction("ToUpperTimeOut5", ToUpper, 5)
+
+    // Catch the interrupt to exit the working loop.
+    sh := util.NewSignalHandler(func() bool {
+        w.Close()
+        return true
+    }, func() bool {return true})
+    go sh.Loop()
 
     go func() {
         log.Println("start worker")

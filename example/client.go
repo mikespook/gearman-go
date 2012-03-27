@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-    client := client.NewClient()
+    client := client.New()
     defer client.Close()
     if err := client.AddServer("127.0.0.1:4730"); err != nil {
         log.Fatalln(err)

@@ -31,7 +31,7 @@ type Client struct {
 }
 
 // Create a new client.
-func NewClient() (client *Client) {
+func New() (client *Client) {
     client = &Client{JobQueue: make(chan *ClientJob, gearman.QUEUE_CAP),
         incoming: make(chan []byte, gearman.QUEUE_CAP),
         UId:      1}

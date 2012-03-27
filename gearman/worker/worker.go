@@ -46,7 +46,7 @@ type Worker struct {
 }
 
 // Get a new worker
-func NewWorker() (worker *Worker) {
+func New() (worker *Worker) {
     worker = &Worker{
         // job server list
         clients: make([]*jobAgent, 0, gearman.WORKER_SERVER_CAP),
