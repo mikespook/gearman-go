@@ -130,7 +130,7 @@ func (worker *Worker) Work() {
     for _, v := range worker.clients {
         go v.Work()
     }
-    for worker.running {
+    for worker.running || len(worker.incoming) > 0{
         select {
         case job := <-worker.incoming:
             if job == nil {
@@ -153,6 +153,7 @@ func (worker *Worker) Work() {
             }
         }
     }
+    close(worker.incoming)
 }
 
 // Get the last job in queue.
@@ -173,11 +174,10 @@ func (worker *Worker) LastJob() (job *WorkerJob) {
 
 // Close.
 func (worker *Worker) Close() (err error) {
-    worker.running = false
     for _, v := range worker.clients {
         err = v.Close()
     }
-    close(worker.incoming)
+    worker.running = false
     return err
 }
 
