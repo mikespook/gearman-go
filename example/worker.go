@@ -3,7 +3,8 @@ package main
 import (
     "bitbucket.org/mikespook/gearman-go/gearman"
     "bitbucket.org/mikespook/gearman-go/gearman/worker"
-    "bitbucket.org/mikespook/golib/util"
+    "bitbucket.org/mikespook/golib/signal"
+    "os"
     "fmt"
     "log"
     "strings"
@@ -21,10 +22,11 @@ func main() {
     w.AddFunction("ToUpperTimeOut5", ToUpper, 5)
 
     // Catch the interrupt to exit the working loop.
-    sh := util.NewSignalHandler(func() bool {
+    sh := signal.NewHandler()
+    sh.Bind(os.Interrupt, func() bool {
         w.Close()
         return true
-    }, func() bool {return true})
+    })
     go sh.Loop()
 
     go func() {
