@@ -10,20 +10,27 @@ import (
     "sync"
 )
 
+const (
+    Unlimit = 0
+    OneByOne = 1
+)
+
 // The definition of the callback function.
 type JobFunction func(job *WorkerJob) ([]byte, error)
 
 // Map for added function.
 type JobFunctionMap map[string]JobFunction
 
+// Error Function
+type ErrFunc func(e error)
 /*
 Worker side api for gearman.
 
 usage:
-    worker = NewWorker()
-    worker.AddFunction("foobar", foobar)
-    worker.AddServer("127.0.0.1:4730")
-    worker.Work() // Enter the worker's main loop
+    w = worker.New(worker.Unlimit)
+    w.AddFunction("foobar", foobar)
+    w.AddServer("127.0.0.1:4730")
+    w.Work() // Enter the worker's main loop
 
 The definition of the callback function 'foobar' should suit for the type 'JobFunction'.
 It looks like this:
@@ -37,16 +44,20 @@ func foobar(job *WorkerJob) (data []byte, err os.Error) {
 type Worker struct {
     clients   []*jobAgent
     functions JobFunctionMap
-
     running  bool
     incoming chan *WorkerJob
     mutex    sync.Mutex
+    limit chan bool
+
     JobQueue chan *WorkerJob
-    ErrQueue chan error
+
+    // assign a ErrFunc to handle errors
+    // Must assign befor AddServer
+    ErrFunc ErrFunc
 }
 
 // Get a new worker
-func New() (worker *Worker) {
+func New(l int) (worker *Worker) {
     worker = &Worker{
         // job server list
         clients: make([]*jobAgent, 0, gearman.WORKER_SERVER_CAP),
@@ -54,10 +65,22 @@ func New() (worker *Worker) {
         functions: make(JobFunctionMap),
         incoming:  make(chan *WorkerJob, gearman.QUEUE_CAP),
         JobQueue:  make(chan *WorkerJob, gearman.QUEUE_CAP),
-        ErrQueue:  make(chan error, gearman.QUEUE_CAP),
         running:   true,
     }
+    if l != Unlimit {
+        worker.limit = make(chan bool, l)
+        for i := 0; i < l; i ++ {
+            worker.limit <- true
+        }
+    }
     return
+}
+
+// 
+func (worker *Worker)err(e error) {
+    if worker.ErrFunc != nil {
+        worker.ErrFunc(e)
+    }
 }
 
 // Add a server. The addr should be 'host:port' format.
@@ -141,11 +164,11 @@ func (worker *Worker) Work() {
                 // do nothing
             case gearman.ERROR:
                 _, err := gearman.GetError(job.Data)
-                worker.ErrQueue <- err
+                worker.err(err)
             case gearman.JOB_ASSIGN, gearman.JOB_ASSIGN_UNIQ:
                 go func() {
                     if err := worker.exec(job); err != nil {
-                        worker.ErrQueue <- err
+                        worker.err(err)
                     }
                 }()
             default:
@@ -217,6 +240,12 @@ func (worker *Worker) SetId(id string) (err error) {
 
 // Execute the job. And send back the result.
 func (worker *Worker) exec(job *WorkerJob) (err error) {
+    if worker.limit != nil {
+        <- worker.limit
+        defer func() {
+            worker.limit <- true
+        }()
+    }
     var limit int
     if job.DataType == gearman.JOB_ASSIGN {
         limit = 3

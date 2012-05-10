@@ -16,7 +16,10 @@ func ToUpper(job *worker.WorkerJob) ([]byte, error) {
 }
 
 func main() {
-    w := worker.New()
+    w := worker.New(worker.Unlimit)
+    w.ErrFunc = func(e error) {
+        log.Println(e)
+    }
     w.AddServer("127.0.0.1:4730")
     w.AddFunction("ToUpper", ToUpper, 0)
     w.AddFunction("ToUpperTimeOut5", ToUpper, 5)
@@ -44,6 +47,7 @@ func main() {
                 }
                 log.Println(string(job.Data))
             case "quit":
+                os.Exit(0)
                 return
             case "result":
                 job := <-w.JobQueue

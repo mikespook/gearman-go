@@ -82,12 +82,12 @@ func (agent *jobAgent) Work() {
         }
         rel, err := agent.read()
         if err != nil {
-            agent.worker.ErrQueue <- err
+            agent.worker.err(err)
             continue
         }
         job, err := DecodeWorkerJob(rel)
         if err != nil {
-            agent.worker.ErrQueue <- err
+            agent.worker.err(err)
             continue
         } else {
             switch job.DataType {

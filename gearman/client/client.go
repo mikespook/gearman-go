@@ -25,28 +25,28 @@ usage:
 type Client struct {
     mutex    sync.Mutex
     conn     net.Conn
-    JobQueue chan *ClientJob
     incoming chan []byte
+
+    JobQueue chan *ClientJob
     UId      uint32
 }
 
 // Create a new client.
 func New() (client *Client) {
-    client = &Client{JobQueue: make(chan *ClientJob, gearman.QUEUE_CAP),
+    return &Client{
+        JobQueue: make(chan *ClientJob, gearman.QUEUE_CAP),
         incoming: make(chan []byte, gearman.QUEUE_CAP),
-        UId:      1}
-    return
+        UId:1}
 }
 
 // Add a server.
 // In this version, one client connect to one job server.
 // Sample is better. Plz do the load balancing by your self.
 func (client *Client) AddServer(addr string) (err error) {
-    conn, err := net.Dial(gearman.TCP, addr)
+    client.conn, err = net.Dial(gearman.TCP, addr)
     if err != nil {
         return
     }
-    client.conn = conn
     return
 }
 
