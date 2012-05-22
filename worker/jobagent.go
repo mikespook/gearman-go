@@ -5,7 +5,7 @@
 package worker
 
 import (
-    "bitbucket.org/mikespook/gearman-go/gearman"
+    gearman "bitbucket.org/mikespook/gearman-go"
     "io"
     "net"
 )

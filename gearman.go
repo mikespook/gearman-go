@@ -1,4 +1,4 @@
-// Copyright 2012 Xing Xing <mikespook@gmail.com> All rights reserved.
+// Copyright 2011 Xing Xing <mikespook@gmail.com> All rights reserved.
 // Use of this source code is governed by a MIT
 // license that can be found in the LICENSE file.
 
@@ -9,7 +9,15 @@ The protocol was implemented by native way.
 
 package gearman
 
-import (
-    _ "bitbucket.org/mikespook/gearman-go/gearman/client"
-    _ "bitbucket.org/mikespook/gearman-go/gearman/worker"
+const (
+    // Job type
+    // JOB_NORMAL | JOB_BG means a normal level job run in background
+    // normal level
+    JOB_NORMAL = 0
+    // background job
+    JOB_BG = 1
+    // low level
+    JOB_LOW = 2
+    // high level
+    JOB_HIGH = 4
 )

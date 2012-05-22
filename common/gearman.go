@@ -1,30 +1,17 @@
-// Copyright 2011 Xing Xing <mikespook@gmail.com> All rights reserved.
+// Copyright 2011 - 2012 Xing Xing <mikespook@gmail.com>.
+// All rights reserved.
 // Use of this source code is governed by a MIT
 // license that can be found in the LICENSE file.
 
-/*
-This module is Gearman API for golang. 
-The protocol was implemented by native way.
-*/
-
-package gearman
-
-import (
-    "bytes"
-    "errors"
-    "syscall"
-)
+package common
 
 const (
-    // tcp4 is tested. You can modify this to 'tcp' for both ipv4 and ipv6,
-    // or 'tcp6' only for ipv6.
-    TCP = "tcp4"
     // the number limited for job servers.
     WORKER_SERVER_CAP = 32
     // the number limited for functions.
     WORKER_FUNCTION_CAP = 512
     // queue size
-    QUEUE_CAP = 512
+    QUEUE_SIZE = 512
     // read buffer size
     BUFFER_SIZE = 1024
 
@@ -80,44 +67,14 @@ const (
     JOB_HIGH = 4
 )
 
-var (
-    ErrIsNotErr      = errors.New("The input is not a error data.")
-    ErrInvalidData   = errors.New("Invalid data.")
-    ErrWorkWarning   = errors.New("Work warning.")
-    ErrWorkFail      = errors.New("Work fail.")
-    ErrWorkException = errors.New("Work exeption.")
-    ErrDataType      = errors.New("Invalid data type.")
-    ErrOutOfCap      = errors.New("Out of the capability.")
-    ErrNotConn       = errors.New("Did not connect to job server.")
-    ErrFuncNotFound  = errors.New("The function was not found.")
-)
-
-// Extract the error message
-func GetError(data []byte) (eno syscall.Errno, err error) {
-    rel := bytes.SplitN(data, []byte{'\x00'}, 2)
-    if len(rel) != 2 {
-        err = ErrIsNotErr
-        return
-    }
-    l := len(rel[0])
-    eno = syscall.Errno(BytesToUint32([4]byte{rel[0][l-4], rel[0][l-3], rel[0][l-2], rel[0][l-1]}))
-    err = errors.New(string(rel[1]))
-    return
-}
-
 // Decode [4]byte to uint32 
 func BytesToUint32(buf [4]byte) uint32 {
-    return uint32(buf[0])<<24 +
-        uint32(buf[1])<<16 +
-        uint32(buf[2])<<8 +
+    return uint32(buf[0])<<24 + uint32(buf[1])<<16 + uint32(buf[2])<<8 +
         uint32(buf[3])
 }
 
 // Encode uint32 to [4]byte
-func Uint32ToBytes(i uint32) (data [4]byte) {
-    data[0] = byte((i >> 24) & 0xff)
-    data[1] = byte((i >> 16) & 0xff)
-    data[2] = byte((i >> 8) & 0xff)
-    data[3] = byte(i & 0xff)
-    return
+func Uint32ToBytes(i uint32) [4]byte {
+    return [4]byte{byte((i >> 24) & 0xff), byte((i >> 16) & 0xff),
+        byte((i >> 8) & 0xff), byte(i & 0xff),}
 }
