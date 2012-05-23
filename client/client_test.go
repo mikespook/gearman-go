@@ -1,7 +1,6 @@
 package client
 
 import (
-    "bitbucket.org/mikespook/gearman-go/common"
     "testing"
 )
 
@@ -10,8 +9,11 @@ var client *Client
 func TestClientAddServer(t *testing.T) {
     t.Log("Add local server 127.0.0.1:4730")
     var err error
-    if client, err = New("tcp4", "127.0.0.1:4730"); err != nil {
+    if client, err = New("127.0.0.1:4730"); err != nil {
         t.Error(err)
+    }
+    client.ErrHandler = func(e error) {
+        t.Error(e)
     }
 }
 
@@ -29,7 +31,7 @@ func TestClientEcho(t *testing.T) {
 }
 
 func TestClientDo(t *testing.T) {
-    if handle, err := client.Do("ToUpper", []byte("abcdef"), common.JOB_LOW|common.JOB_BG); err != nil {
+    if handle, err := client.Do("ToUpper", []byte("abcdef"), JOB_LOW|JOB_BG); err != nil {
         t.Error(err)
     } else {
         t.Log(handle)

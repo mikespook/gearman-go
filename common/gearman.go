@@ -54,17 +54,6 @@ const (
     SUBMIT_JOB_HIGH_BG = 32
     SUBMIT_JOB_LOW     = 33
     SUBMIT_JOB_LOW_BG  = 34
-
-    // Job type
-    // JOB_NORMAL | JOB_BG means a normal level job run in background
-    // normal level
-    JOB_NORMAL = 0
-    // background job
-    JOB_BG = 1
-    // low level
-    JOB_LOW = 2
-    // high level
-    JOB_HIGH = 4
 )
 
 // Decode [4]byte to uint32 

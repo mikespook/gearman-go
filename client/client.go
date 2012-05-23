@@ -6,9 +6,9 @@
 package client
 
 import (
-    "bytes"
     "io"
     "net"
+    "bytes"
     "strconv"
     "bitbucket.org/mikespook/golib/autoinc"
     "bitbucket.org/mikespook/gearman-go/common"
@@ -24,8 +24,8 @@ type StatusHandler func(string, bool, bool, uint64, uint64)
 The client side api for gearman
 
 usage:
-    c := client.New("tcp4", "127.0.0.1:4730")
-    handle := c.Do("foobar", []byte("data here"), JOB_LOW | JOB_BG)
+c := client.New("tcp4", "127.0.0.1:4730")
+handle := c.Do("foobar", []byte("data here"), JOB_LOW | JOB_BG)
 
 */
 type Client struct {
@@ -43,9 +43,9 @@ type Client struct {
 // Create a new client.
 // Connect to "addr" through "network"
 // Eg.
-//      client, err := client.New("tcp4", "127.0.0.1:4730")
-func New(network, addr string) (client *Client, err error) {
-    conn, err := net.Dial(network, addr)
+//      client, err := client.New("127.0.0.1:4730")
+func New(addr string) (client *Client, err error) {
+    conn, err := net.Dial("tcp", addr)
     if err != nil {
         return
     }
@@ -56,8 +56,8 @@ func New(network, addr string) (client *Client, err error) {
         conn: conn,
         ai: autoinc.New(0, 1),
     }
-    go client.outLoop()
     go client.inLoop()
+    go client.outLoop()
     return
 }
 
@@ -66,7 +66,9 @@ func (client *Client) outLoop() {
     ok := true
     for ok {
         if job, ok := <-client.out; ok {
-            client.write(job.Encode())
+            if err := client.write(job.Encode()); err != nil {
+                client.err(err)
+            }
         }
     }
 }
@@ -88,14 +90,14 @@ func (client *Client) inLoop() {
         case common.ERROR:
             _, err := common.GetError(job.Data)
             client.err(err)
-        case common.WORK_DATA, common.WORK_WARNING, common.WORK_STATUS,
+            case common.WORK_DATA, common.WORK_WARNING, common.WORK_STATUS,
             common.WORK_COMPLETE, common.WORK_FAIL, common.WORK_EXCEPTION,
             common.ECHO_RES:
-            client.handleJob(job)
+            go client.handleJob(job)
         case common.JOB_CREATED:
             client.jobCreated <- job
         case common.STATUS_RES:
-            client.handleStatus(job)
+            go client.handleStatus(job)
         }
     }
 }
@@ -112,6 +114,10 @@ func (client *Client) read() (data []byte, err error) {
             var n int
             if n, err = client.conn.Read(buf); err != nil {
                 if err == io.EOF && n == 0 {
+                    if data == nil {
+                        err = common.ErrEmptyReading
+                        return
+                    }
                     break
                 }
                 return
@@ -123,8 +129,8 @@ func (client *Client) read() (data []byte, err error) {
         }
     }
     // split package
-    start, end := 0, 4
     tl := len(data)
+    start, end := 0, 4
     for i := 0; i < tl; i++ {
         if string(data[start:end]) == common.RES_STR {
             l := int(common.BytesToUint32([4]byte{data[start+8], data[start+9], data[start+10], data[start+11]}))
@@ -193,19 +199,19 @@ func (client *Client) handleStatus(job *Job) {
 // JOB_LOW | JOB_BG means the job is running with low level in background.
 func (client *Client) Do(funcname string, data []byte, flag byte) (handle string, err error) {
     var datatype uint32
-    if flag & common.JOB_LOW == common.JOB_LOW {
-        if flag & common.JOB_BG == common.JOB_BG {
+    if flag & JOB_LOW == JOB_LOW {
+        if flag & JOB_BG == JOB_BG {
             datatype = common.SUBMIT_JOB_LOW_BG
         } else {
             datatype = common.SUBMIT_JOB_LOW
         }
-    } else if flag & common.JOB_HIGH == common.JOB_HIGH {
-        if flag & common.JOB_BG == common.JOB_BG {
+    } else if flag & JOB_HIGH == JOB_HIGH {
+        if flag & JOB_BG == JOB_BG {
             datatype = common.SUBMIT_JOB_HIGH_BG
         } else {
             datatype = common.SUBMIT_JOB_HIGH
         }
-    } else if flag & common.JOB_BG == common.JOB_BG {
+    } else if flag & JOB_BG == JOB_BG {
         datatype = common.SUBMIT_JOB_BG
     } else {
         datatype = common.SUBMIT_JOB
@@ -213,14 +219,13 @@ func (client *Client) Do(funcname string, data []byte, flag byte) (handle string
 
     uid := strconv.Itoa(int(client.ai.Id()))
     l := len(funcname) + len(uid) + len(data) + 2
-    rel := make([]byte, l)
+    rel := make([]byte, 0, l)
     rel = append(rel, []byte(funcname)...)          // len(funcname)
     rel = append(rel, '\x00')                       // 1 Byte
     rel = append(rel, []byte(uid)...)               // len(uid)
     rel = append(rel, '\x00')                       // 1 Byte
     rel = append(rel, data...)                      // len(data)
     client.writeJob(newJob(common.REQ, datatype, rel))
-
     // Waiting for JOB_CREATED
     job := <-client.jobCreated
     return string(job.Data), nil
@@ -259,5 +264,6 @@ func (client *Client) write(buf []byte) (err error) {
 func (client *Client) Close() (err error) {
     close(client.jobCreated)
     close(client.in)
+    close(client.out)
     return client.conn.Close();
 }

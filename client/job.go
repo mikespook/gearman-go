@@ -9,6 +9,20 @@ import (
     "bytes"
     "bitbucket.org/mikespook/gearman-go/common"
 )
+
+const (
+    // Job type
+    // JOB_NORMAL | JOB_BG means a normal level job run in background
+    // normal level
+    JOB_NORMAL = 0
+    // background job
+    JOB_BG = 1
+    // low level
+    JOB_LOW = 2
+    // high level
+    JOB_HIGH = 4
+)
+
 // An error handler
 type ErrorHandler func(error)
 
@@ -42,13 +56,15 @@ func decodeJob(data []byte) (job *Job, err error) {
 
 // Encode a job to byte slice
 func (job *Job) Encode() (data []byte) {
-    l := len(job.Data) + 12
-    data = make([]byte, l)
+    l := len(job.Data)
+    tl := l + 12
+    data = make([]byte, tl)
 
     magiccode := common.Uint32ToBytes(job.magicCode)
     datatype := common.Uint32ToBytes(job.DataType)
     datalength := common.Uint32ToBytes(uint32(l))
-    for i := 0; i < l; i ++ {
+
+    for i := 0; i < tl; i ++ {
         switch {
             case i < 4:
                 data[i] = magiccode[i]
@@ -60,6 +76,13 @@ func (job *Job) Encode() (data []byte) {
                 data[i] = job.Data[i - 12]
         }
     }
+    // Alternative
+    /*
+    data = append(data, magiccode[:] ...)
+    data = append(data, datatype[:] ...)
+    data = append(data, datalength[:] ...)
+    data = append(data, job.Data ...)
+    */
     return
 }
 
