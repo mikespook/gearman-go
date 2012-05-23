@@ -5,29 +5,26 @@
 package worker
 
 import (
-    gearman "bitbucket.org/mikespook/gearman-go"
     "bytes"
-    "sync"
+    "bitbucket.org/mikespook/gearman-go/common"
 )
 
 const (
-    Unlimit = 0
+    Unlimited = 0
     OneByOne = 1
 )
 
 // The definition of the callback function.
-type JobFunction func(job *WorkerJob) ([]byte, error)
+type JobFunc func(job *Job) ([]byte, error)
 
 // Map for added function.
-type JobFunctionMap map[string]JobFunction
+type JobFuncs map[string]JobFunc
 
-// Error Function
-type ErrFunc func(e error)
 /*
-Worker side api for gearman.
+Worker side api for gearman
 
 usage:
-    w = worker.New(worker.Unlimit)
+    w = worker.New(worker.Unlimited)
     w.AddFunction("foobar", foobar)
     w.AddServer("127.0.0.1:4730")
     w.Work() // Enter the worker's main loop
@@ -35,51 +32,49 @@ usage:
 The definition of the callback function 'foobar' should suit for the type 'JobFunction'.
 It looks like this:
 
-func foobar(job *WorkerJob) (data []byte, err os.Error) {
+func foobar(job *Job) (data []byte, err os.Error) {
     //sth. here
     //plaplapla...
     return
 }
 */
 type Worker struct {
-    clients   []*jobAgent
-    functions JobFunctionMap
-    running  bool
-    incoming chan *WorkerJob
-    mutex    sync.Mutex
+    agents  []*jobAgent
+    funcs   JobFuncs
+    in chan *Job
+    out chan *Job
+    running bool
     limit chan bool
 
-    JobQueue chan *WorkerJob
-
+    Id string
     // assign a ErrFunc to handle errors
-    // Must assign befor AddServer
-    ErrFunc ErrFunc
+    ErrHandler common.ErrorHandler
 }
 
 // Get a new worker
 func New(l int) (worker *Worker) {
     worker = &Worker{
-        // job server list
-        clients: make([]*jobAgent, 0, gearman.WORKER_SERVER_CAP),
-        // function list
+        agents: make([]*jobAgent, 0),
         functions: make(JobFunctionMap),
-        incoming:  make(chan *WorkerJob, gearman.QUEUE_CAP),
-        JobQueue:  make(chan *WorkerJob, gearman.QUEUE_CAP),
+
+        in:  make(chan *Job, common.QUEUE_SIZE),
+        out:  make(chan *Job, common.QUEUE_SIZE),
         running:   true,
     }
-    if l != Unlimit {
+    if l != Unlimited {
         worker.limit = make(chan bool, l)
         for i := 0; i < l; i ++ {
             worker.limit <- true
         }
     }
+    go worker.outLoop()
     return
 }
 
 // 
 func (worker *Worker)err(e error) {
-    if worker.ErrFunc != nil {
-        worker.ErrFunc(e)
+    if worker.ErrHandler != nil {
+        worker.ErrHandler(e)
     }
 }
 
@@ -90,7 +85,7 @@ func (worker *Worker) AddServer(addr string) (err error) {
     defer worker.mutex.Unlock()
 
     if len(worker.clients) == cap(worker.clients) {
-        return gearman.ErrOutOfCap
+        return common.ErrOutOfCap
     }
 
     // Create a new job server's client as a agent of server
@@ -109,9 +104,9 @@ func (worker *Worker) AddServer(addr string) (err error) {
 // Plz added job servers first, then functions.
 // The API will tell every connected job server that 'I can do this'
 func (worker *Worker) AddFunction(funcname string,
-    f JobFunction, timeout uint32) (err error) {
+    f JobFunc, timeout uint32) (err error) {
     if len(worker.clients) < 1 {
-        return gearman.ErrNotConn
+        return common.ErrNotConn
     }
     worker.mutex.Lock()
     defer worker.mutex.Unlock()
@@ -120,15 +115,15 @@ func (worker *Worker) AddFunction(funcname string,
     var datatype uint32
     var data []byte
     if timeout == 0 {
-        datatype = gearman.CAN_DO
+        datatype = common.CAN_DO
         data = []byte(funcname)
     } else {
-        datatype = gearman.CAN_DO_TIMEOUT
+        datatype = common.CAN_DO_TIMEOUT
         data = []byte(funcname + "\x00")
-        t := gearman.Uint32ToBytes(timeout)
+        t := common.Uint32ToBytes(timeout)
         data = append(data, t[:]...)
     }
-    job := NewWorkerJob(gearman.REQ, datatype, data)
+    job := newJob(common.REQ, datatype, data)
     worker.WriteJob(job)
     return
 }
@@ -140,10 +135,10 @@ func (worker *Worker) RemoveFunction(funcname string) (err error) {
     defer worker.mutex.Unlock()
 
     if worker.functions[funcname] == nil {
-        return gearman.ErrFuncNotFound
+        return common.ErrFuncNotFound
     }
     delete(worker.functions, funcname)
-    job := NewWorkerJob(gearman.REQ, gearman.CANT_DO, []byte(funcname))
+    job := newJob(common.REQ, common.CANT_DO, []byte(funcname))
     worker.WriteJob(job)
     return
 }
@@ -153,19 +148,19 @@ func (worker *Worker) Work() {
     for _, v := range worker.clients {
         go v.Work()
     }
-    for worker.running || len(worker.incoming) > 0{
+    for worker.running || len(worker.in) > 0{
         select {
-        case job := <-worker.incoming:
+        case job := <-worker.in:
             if job == nil {
                 break
             }
             switch job.DataType {
-            case gearman.NO_JOB:
+            case common.NO_JOB:
                 // do nothing
-            case gearman.ERROR:
-                _, err := gearman.GetError(job.Data)
+            case common.ERROR:
+                _, err := common.GetError(job.Data)
                 worker.err(err)
-            case gearman.JOB_ASSIGN, gearman.JOB_ASSIGN_UNIQ:
+            case common.JOB_ASSIGN, common.JOB_ASSIGN_UNIQ:
                 go func() {
                     if err := worker.exec(job); err != nil {
                         worker.err(err)
@@ -176,23 +171,7 @@ func (worker *Worker) Work() {
             }
         }
     }
-    close(worker.incoming)
-}
-
-// Get the last job in queue.
-// If there are more than one job in the queue, 
-// the last one will be returned,
-// the others will be lost.
-func (worker *Worker) LastJob() (job *WorkerJob) {
-    if l := len(worker.JobQueue); l != 1 {
-        if l == 0 {
-            return
-        }
-        for i := 0; i < l-1; i++ {
-            <-worker.JobQueue
-        }
-    }
-    return <-worker.JobQueue
+    close(worker.in)
 }
 
 // Close.
@@ -207,26 +186,26 @@ func (worker *Worker) Close() (err error) {
 // Write a job to job server.
 // Here, the job's mean is not the oraginal mean.
 // Just looks like a network package for job's result or tell job server, there was a fail.
-func (worker *Worker) WriteJob(job *WorkerJob) (err error) {
-    e := make(chan error)
-    for _, v := range worker.clients {
+func (worker *Worker) Broadcast(job *Job) {
+    for _, v := range worker.agents {
         go func() {
-            e <- v.WriteJob(job)
+            if err := v.WriteJob(job); err != nil {
+                worker.err(err)
+            }
         }()
     }
-    return <-e
 }
 
 // Send a something out, get the samething back.
 func (worker *Worker) Echo(data []byte) (err error) {
-    job := NewWorkerJob(gearman.REQ, gearman.ECHO_REQ, data)
+    job := newJob(common.REQ, common.ECHO_REQ, data)
     return worker.WriteJob(job)
 }
 
 // Remove all of functions.
 // Both from the worker or job servers.
 func (worker *Worker) Reset() (err error) {
-    job := NewWorkerJob(gearman.REQ, gearman.RESET_ABILITIES, nil)
+    job := newJob(common.REQ, common.RESET_ABILITIES, nil)
     err = worker.WriteJob(job)
     worker.functions = make(JobFunctionMap)
     return
@@ -234,20 +213,20 @@ func (worker *Worker) Reset() (err error) {
 
 // Set the worker's unique id.
 func (worker *Worker) SetId(id string) (err error) {
-    job := NewWorkerJob(gearman.REQ, gearman.SET_CLIENT_ID, []byte(id))
+    job := newJob(common.REQ, common.SET_CLIENT_ID, []byte(id))
     return worker.WriteJob(job)
 }
 
 // Execute the job. And send back the result.
-func (worker *Worker) exec(job *WorkerJob) (err error) {
+func (worker *Worker) exec(job *Job) (err error) {
     if worker.limit != nil {
-        <- worker.limit
+        <-worker.limit
         defer func() {
             worker.limit <- true
         }()
     }
     var limit int
-    if job.DataType == gearman.JOB_ASSIGN {
+    if job.DataType == common.JOB_ASSIGN {
         limit = 3
     } else {
         limit = 4
@@ -255,7 +234,7 @@ func (worker *Worker) exec(job *WorkerJob) (err error) {
     jobdata := bytes.SplitN(job.Data, []byte{'\x00'}, limit)
     job.Handle = string(jobdata[0])
     funcname := string(jobdata[1])
-    if job.DataType == gearman.JOB_ASSIGN {
+    if job.DataType == common.JOB_ASSIGN {
         job.Data = jobdata[2]
     } else {
         job.UniqueId = string(jobdata[2])
@@ -263,21 +242,21 @@ func (worker *Worker) exec(job *WorkerJob) (err error) {
     }
     f, ok := worker.functions[funcname]
     if !ok {
-        return gearman.ErrFuncNotFound
+        return common.ErrFuncNotFound
     }
     result, err := f(job)
     var datatype uint32
     if err == nil {
-        datatype = gearman.WORK_COMPLETE
+        datatype = common.WORK_COMPLETE
     } else {
         if result == nil {
-            datatype = gearman.WORK_FAIL
+            datatype = common.WORK_FAIL
         } else {
-            datatype = gearman.WORK_EXCEPTION
+            datatype = common.WORK_EXCEPTION
         }
     }
 
-    job.magicCode = gearman.REQ
+    job.magicCode = common.REQ
     job.DataType = datatype
     job.Data = result
 

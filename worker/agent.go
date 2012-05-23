@@ -5,9 +5,9 @@
 package worker
 
 import (
-    gearman "bitbucket.org/mikespook/gearman-go"
     "io"
     "net"
+    "bitbucket.org/mikespook/gearman-go/common"
 )
 
 // The agent of job server.
@@ -15,27 +15,33 @@ type jobAgent struct {
     conn     net.Conn
     worker   *Worker
     running  bool
-    incoming chan []byte
+    in chan []byte
+    out chan *Job
 }
 
 // Create the agent of job server.
 func newJobAgent(addr string, worker *Worker) (jobagent *jobAgent, err error) {
-    conn, err := net.Dial(gearman.TCP, addr)
+    conn, err := net.Dial(common.NETWORK, addr)
     if err != nil {
         return nil, err
     }
-    jobagent = &jobAgent{conn: conn, worker: worker, running: true, incoming: make(chan []byte, gearman.QUEUE_CAP)}
+    jobagent = &jobAgent{
+        conn: conn,
+        worker: worker,
+        running: true,
+        in: make(chan []byte, common.QUEUE_SIZE),
+    }
     return jobagent, err
 }
 
 // Internal read
 func (agent *jobAgent) read() (data []byte, err error) {
-    if len(agent.incoming) > 0 {
-        // incoming queue is not empty
-        data = <-agent.incoming
+    if len(agent.in) > 0 {
+        // in queue is not empty
+        data = <-agent.in
     } else {
         for {
-            buf := make([]byte, gearman.BUFFER_SIZE)
+            buf := make([]byte, common.BUFFER_SIZE)
             var n int
             if n, err = agent.conn.Read(buf); err != nil {
                 if err == io.EOF && n == 0 {
@@ -45,7 +51,7 @@ func (agent *jobAgent) read() (data []byte, err error) {
                 return
             }
             data = append(data, buf[0:n]...)
-            if n < gearman.BUFFER_SIZE {
+            if n < common.BUFFER_SIZE {
                 break
             }
         }
@@ -54,13 +60,13 @@ func (agent *jobAgent) read() (data []byte, err error) {
     start := 0
     tl := len(data)
     for i := 0; i < tl; i++ {
-        if string(data[start:start+4]) == gearman.RES_STR {
-            l := int(gearman.BytesToUint32([4]byte{data[start+8], data[start+9], data[start+10], data[start+11]}))
+        if string(data[start:start+4]) == common.RES_STR {
+            l := int(common.BytesToUint32([4]byte{data[start+8], data[start+9], data[start+10], data[start+11]}))
             total := l + 12
             if total == tl {
                 return
             } else {
-                agent.incoming <- data[total:]
+                agent.in <- data[total:]
                 data = data[:total]
                 return
             }
@@ -68,7 +74,7 @@ func (agent *jobAgent) read() (data []byte, err error) {
             start++
         }
     }
-    err = gearman.ErrInvalidData
+    err = common.ErrInvalidData
     return
 }
 
@@ -76,29 +82,29 @@ func (agent *jobAgent) read() (data []byte, err error) {
 func (agent *jobAgent) Work() {
     noop := true
     for agent.running {
-        // got noop msg and incoming queue is zero, grab job
-        if noop && len(agent.incoming) == 0 {
-            agent.WriteJob(NewWorkerJob(gearman.REQ, gearman.GRAB_JOB, nil))
+        // got noop msg and in queue is zero, grab job
+        if noop && len(agent.in) == 0 {
+            agent.WriteJob(newJob(common.REQ, common.GRAB_JOB, nil))
         }
         rel, err := agent.read()
         if err != nil {
             agent.worker.err(err)
             continue
         }
-        job, err := DecodeWorkerJob(rel)
+        job, err := decodeJob(rel)
         if err != nil {
             agent.worker.err(err)
             continue
         } else {
             switch job.DataType {
-            case gearman.NOOP:
+            case common.NOOP:
                 noop = true
-            case gearman.NO_JOB:
+            case common.NO_JOB:
                 noop = false
-                agent.WriteJob(NewWorkerJob(gearman.REQ, gearman.PRE_SLEEP, nil))
-            case gearman.ECHO_RES, gearman.JOB_ASSIGN_UNIQ, gearman.JOB_ASSIGN:
+                agent.WriteJob(newJob(common.REQ, common.PRE_SLEEP, nil))
+            case common.ECHO_RES, common.JOB_ASSIGN_UNIQ, common.JOB_ASSIGN:
                 job.agent = agent
-                agent.worker.incoming <- job
+                agent.worker.in <- job
             }
         }
     }
@@ -106,7 +112,7 @@ func (agent *jobAgent) Work() {
 }
 
 // Send a job to the job server.
-func (agent *jobAgent) WriteJob(job *WorkerJob) (err error) {
+func (agent *jobAgent) WriteJob(job *Job) (err error) {
     return agent.write(job.Encode())
 }
 
@@ -125,7 +131,7 @@ func (agent *jobAgent) write(buf []byte) (err error) {
 // Close.
 func (agent *jobAgent) Close() (err error) {
     agent.running = false
-    close(agent.incoming)
+    close(agent.in)
     err = agent.conn.Close()
     return
 }

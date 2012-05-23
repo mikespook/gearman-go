@@ -5,12 +5,12 @@
 package worker
 
 import (
-    gearman "bitbucket.org/mikespook/gearman-go"
     "strconv"
+    "bitbucket.org/mikespook/gearman-go/common"
 )
 
 // Worker side job
-type WorkerJob struct {
+type Job struct {
     Data                []byte
     Handle, UniqueId    string
     agent               *jobAgent
@@ -18,70 +18,74 @@ type WorkerJob struct {
 }
 
 // Create a new job
-func NewWorkerJob(magiccode, datatype uint32, data []byte) (job *WorkerJob) {
-    return &WorkerJob{magicCode: magiccode,
+func newJob(magiccode, datatype uint32, data []byte) (job *Job) {
+    return &Job{magicCode: magiccode,
         DataType: datatype,
         Data:     data}
 }
 
 // Decode job from byte slice
-func DecodeWorkerJob(data []byte) (job *WorkerJob, err error) {
+func decodeJob(data []byte) (job *Job, err error) {
     if len(data) < 12 {
-        err = gearman.ErrInvalidData
+        err = common.ErrInvalidData
         return
     }
-    datatype := gearman.BytesToUint32([4]byte{data[4], data[5], data[6], data[7]})
-    l := gearman.BytesToUint32([4]byte{data[8], data[9], data[10], data[11]})
+    datatype := common.BytesToUint32([4]byte{data[4], data[5], data[6], data[7]})
+    l := common.BytesToUint32([4]byte{data[8], data[9], data[10], data[11]})
     if len(data[12:]) != int(l) {
-        err = gearman.ErrInvalidData
+        err = common.ErrInvalidData
         return
     }
     data = data[12:]
-    job = NewWorkerJob(gearman.RES, datatype, data)
+    job = newJob(common.RES, datatype, data)
     return
 }
 
 // Encode a job to byte slice
-func (job *WorkerJob) Encode() (data []byte) {
-    magiccode := gearman.Uint32ToBytes(job.magicCode)
-    datatype := gearman.Uint32ToBytes(job.DataType)
-    data = make([]byte, 0, 1024*64)
+func (job *Job) Encode() (data []byte) {
+    l := len(job.Data)
+    tl := l + 12
+    if job.Handle != "" {
+        tl += len(job.Handle) + 1
+    }
+    data = make([]byte, 0, tl)
+
+    magiccode := common.Uint32ToBytes(job.magicCode)
+    datatype := common.Uint32ToBytes(job.DataType)
+    datalength := common.Uint32ToBytes(uint32(tl))
+
     data = append(data, magiccode[:]...)
     data = append(data, datatype[:]...)
-    data = append(data, []byte{0, 0, 0, 0}...)
-    l := len(job.Data)
+    data = append(data, datalength[:]...)
     if job.Handle != "" {
         data = append(data, []byte(job.Handle)...)
         data = append(data, 0)
-        l += len(job.Handle) + 1
     }
     data = append(data, job.Data...)
-    datalength := gearman.Uint32ToBytes(uint32(l))
-    copy(data[8:12], datalength[:])
     return
 }
 
 // Send some datas to client.
 // Using this in a job's executing.
-func (job *WorkerJob) UpdateData(data []byte, iswaring bool) (err error) {
+func (job *Job) UpdateData(data []byte, iswaring bool) (err error) {
     result := append([]byte(job.Handle), 0)
     result = append(result, data...)
     var datatype uint32
     if iswaring {
-        datatype = gearman.WORK_WARNING
+        datatype = common.WORK_WARNING
     } else {
-        datatype = gearman.WORK_DATA
+        datatype = common.WORK_DATA
     }
-    return job.agent.WriteJob(NewWorkerJob(gearman.REQ, datatype, result))
+    return job.agent.WriteJob(newJob(common.REQ, datatype, result))
 }
 
 // Update status.
 // Tall client how many percent job has been executed.
-func (job *WorkerJob) UpdateStatus(numerator, denominator int) (err error) {
+func (job *Job) UpdateStatus(numerator, denominator int) (err error) {
     n := []byte(strconv.Itoa(numerator))
     d := []byte(strconv.Itoa(denominator))
     result := append([]byte(job.Handle), 0)
     result = append(result, n...)
     result = append(result, d...)
-    return job.agent.WriteJob(NewWorkerJob(gearman.REQ, gearman.WORK_STATUS, result))
+    return job.agent.WriteJob(newJob(common.REQ, common.WORK_STATUS, result))
 }

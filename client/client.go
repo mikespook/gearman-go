@@ -45,7 +45,7 @@ type Client struct {
 // Eg.
 //      client, err := client.New("127.0.0.1:4730")
 func New(addr string) (client *Client, err error) {
-    conn, err := net.Dial("tcp", addr)
+    conn, err := net.Dial(common.NETWORK, addr)
     if err != nil {
         return
     }

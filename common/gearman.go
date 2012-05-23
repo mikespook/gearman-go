@@ -6,10 +6,7 @@
 package common
 
 const (
-    // the number limited for job servers.
-    WORKER_SERVER_CAP = 32
-    // the number limited for functions.
-    WORKER_FUNCTION_CAP = 512
+    NETWORK = "tcp"
     // queue size
     QUEUE_SIZE = 512
     // read buffer size
