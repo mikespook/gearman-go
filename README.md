@@ -1,23 +1,24 @@
 # Gearman API for golang
 
-This module is Gearman API for golang. It was implemented a native 
-protocol for both worker and client API.
+This package is a [Gearman](http://gearman.org/) API for [Golang](http://golang.org).
+It was implemented a native protocol for both worker and client API.
 
-Copyright 2012 Xing Xing <mikespook@gmail.com> All rights reserved. 
-Use of this source code is governed by a MIT license that can be found
+Copyright 2012 Xing Xing <mikespook@gmail.com>
+All rights reserved. 
+Use of this source code is governed by a MIT license that can be found 
 in the LICENSE file.
 
 # INSTALL
 
-This will install the client:
+Install the client package:
 
 > $ go get bitbucket.org/mikespook/gearman-go/client
 	
-This will install the worker:
+Install the worker package:
 
 > $ go get bitbucket.org/mikespook/gearman-go/worker
 
-This will install the client and the worker automatically:
+Install both:
 
 > $ go get bitbucket.org/mikespook/gearman-go
 	
@@ -26,35 +27,43 @@ This will install the client and the worker automatically:
 
 ## Worker
 
-> $ cd example
->
-> $ go build worker
->
-> $ ./worker
+    w := worker.New(worker.Unlimited)
+    w.ErrHandler = func(e error) {
+        log.Println(e)
+    }
+    w.AddServer("127.0.0.1:4730")
+    w.AddFunc("ToUpper", ToUpper, 0)
+    w.AddFunc("ToUpperTimeOut5", ToUpper, 5)
+    w.Work()
 
 ## Client
 
-> $ cd example
->
-> $ go build client
->
-> $ ./client
-
-# Code format
-
-> $ gofmt -spaces=true -tabwidth=4 -w=true -tabindent=false $(DIR)
+    c, err := client.New("127.0.0.1:4730")
+    // ...
+    defer c.Close()
+    echo := []byte("Hello\x00 world")
+    c.JobHandler = func(job *client.Job) error {
+        log.Printf("%s", job.Data)
+        return nil
+    }
+    c.ErrHandler = func(e error) {
+        log.Println(e)
+        panic(e)
+    }
+    handle, err := c.Do("ToUpper", echo, client.JOB_NORMAL)
+    // ...
 
 # Contacts
 
 Xing Xing <mikespook@gmail.com>
 
-http://mikespook.com
+[Blog](http://mikespook.com)
 
-http://twitter.com/mikespook
+[@Twitter](http://twitter.com/mikespook)
 
 # History
 
- * 0.1      Refactoring code, redesign the API.
+ * 0.1      Code refactoring; Redesign the API.
  * 0.0.1    Initial implementation, ugly code-style, slow profermance and unstable API.
 
 # TODO
