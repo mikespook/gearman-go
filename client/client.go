@@ -82,7 +82,7 @@ func (client *Client) inLoop() {
     for {
         rel, err := client.read()
         if err != nil {
-            if err == common.ErrEmptyReading {
+            if err == common.ErrConnection {
                 client.Close()
                 break
             }
@@ -123,7 +123,7 @@ func (client *Client) read() (data []byte, err error) {
             if n, err = client.conn.Read(buf); err != nil {
                 if err == io.EOF && n == 0 {
                     if data == nil {
-                        err = common.ErrEmptyReading
+                        err = common.ErrConnection
                         return
                     }
                     break

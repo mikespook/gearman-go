@@ -61,7 +61,8 @@ func (a *agent) inLoop() {
         }
         rel, err := a.read()
         if err != nil {
-            if err == common.ErrEmptyReading {
+            if err == common.ErrConnection {
+                // TODO: reconnection
                 break
             }
             a.worker.err(err)
@@ -102,7 +103,7 @@ func (a *agent) read() (data []byte, err error) {
             if n, err = a.conn.Read(buf); err != nil {
                 if err == io.EOF && n == 0 {
                     if data == nil {
-                        err = common.ErrEmptyReading
+                        err = common.ErrConnection
                         return
                     }
                     break

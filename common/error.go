@@ -22,7 +22,7 @@ var (
     ErrOutOfCap         = errors.New("Out of the capability.")
     ErrNotConn          = errors.New("Did not connect to job server.")
     ErrFuncNotFound     = errors.New("The function was not found.")
-    ErrEmptyReading     = errors.New("Empty reading.")
+    ErrConnection     = errors.New("Connection error.")
 )
 func DisablePanic() {recover()}
 
