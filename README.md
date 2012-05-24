@@ -60,4 +60,4 @@ http://twitter.com/mikespook
 # TODO
 
  * Can not grab a job correctly.
- * The worker should can reconnect to the job server.
+ * Worker's auto-reconnection.
