@@ -13,21 +13,28 @@ const (
     Unlimited = 0
     OneByOne = 1
 )
+// Job handler
+type JobHandler func(*Job) error
 
-// The definition of the callback function.
 type JobFunc func(job *Job) ([]byte, error)
 
+// The definition of the callback function.
+type jobFunc struct {
+    f JobFunc
+    timeout uint32
+}
+
 // Map for added function.
-type JobFuncs map[string]JobFunc
+type JobFuncs map[string]*jobFunc
 
 /*
 Worker side api for gearman
 
 usage:
-    w = worker.New(worker.Unlimited)
-    w.AddFunction("foobar", foobar)
-    w.AddServer("127.0.0.1:4730")
-    w.Work() // Enter the worker's main loop
+w = worker.New(worker.Unlimited)
+w.AddFunction("foobar", foobar)
+w.AddServer("127.0.0.1:4730")
+w.Work() // Enter the worker's main loop
 
 The definition of the callback function 'foobar' should suit for the type 'JobFunction'.
 It looks like this:
@@ -39,27 +46,24 @@ func foobar(job *Job) (data []byte, err os.Error) {
 }
 */
 type Worker struct {
-    agents  []*jobAgent
+    agents  []*agent
     funcs   JobFuncs
     in chan *Job
-    out chan *Job
     running bool
     limit chan bool
 
     Id string
     // assign a ErrFunc to handle errors
     ErrHandler common.ErrorHandler
+    JobHandler JobHandler
 }
 
 // Get a new worker
 func New(l int) (worker *Worker) {
     worker = &Worker{
-        agents: make([]*jobAgent, 0),
-        functions: make(JobFunctionMap),
-
+        agents: make([]*agent, 0),
+        funcs: make(JobFuncs),
         in:  make(chan *Job, common.QUEUE_SIZE),
-        out:  make(chan *Job, common.QUEUE_SIZE),
-        running:   true,
     }
     if l != Unlimited {
         worker.limit = make(chan bool, l)
@@ -67,7 +71,6 @@ func New(l int) (worker *Worker) {
             worker.limit <- true
         }
     }
-    go worker.outLoop()
     return
 }
 
@@ -81,37 +84,42 @@ func (worker *Worker)err(e error) {
 // Add a server. The addr should be 'host:port' format.
 // The connection is established at this time.
 func (worker *Worker) AddServer(addr string) (err error) {
-    worker.mutex.Lock()
-    defer worker.mutex.Unlock()
-
-    if len(worker.clients) == cap(worker.clients) {
-        return common.ErrOutOfCap
-    }
-
     // Create a new job server's client as a agent of server
-    server, err := newJobAgent(addr, worker)
+    server, err := newAgent(addr, worker)
     if err != nil {
         return err
     }
-
-    n := len(worker.clients)
-    worker.clients = worker.clients[0 : n+1]
-    worker.clients[n] = server
+    worker.agents = append(worker.agents, server)
     return
+}
+
+// Write a job to job server.
+// Here, the job's mean is not the oraginal mean.
+// Just looks like a network package for job's result or tell job server, there was a fail.
+func (worker *Worker) broadcast(job *Job) {
+    for _, v := range worker.agents {
+        v.WriteJob(job)
+    }
 }
 
 // Add a function.
 // Plz added job servers first, then functions.
 // The API will tell every connected job server that 'I can do this'
-func (worker *Worker) AddFunction(funcname string,
-    f JobFunc, timeout uint32) (err error) {
-    if len(worker.clients) < 1 {
-        return common.ErrNotConn
+func (worker *Worker) AddFunc(funcname string,
+f JobFunc, timeout uint32) (err error) {
+    if _, ok := worker.funcs[funcname]; ok {
+        return common.Errorf("The function already exists: %s", funcname)
     }
-    worker.mutex.Lock()
-    defer worker.mutex.Unlock()
-    worker.functions[funcname] = f
+    worker.funcs[funcname] = &jobFunc{f: f, timeout: timeout}
 
+    if worker.running {
+        worker.addFunc(funcname, timeout)
+    }
+    return
+}
+
+// inner add function
+func (worker *Worker) addFunc(funcname string, timeout uint32) {
     var datatype uint32
     var data []byte
     if timeout == 0 {
@@ -124,42 +132,50 @@ func (worker *Worker) AddFunction(funcname string,
         data = append(data, t[:]...)
     }
     job := newJob(common.REQ, datatype, data)
-    worker.WriteJob(job)
-    return
+    worker.broadcast(job)
+
 }
 
 // Remove a function.
 // Tell job servers 'I can not do this now' at the same time.
-func (worker *Worker) RemoveFunction(funcname string) (err error) {
-    worker.mutex.Lock()
-    defer worker.mutex.Unlock()
-
-    if worker.functions[funcname] == nil {
-        return common.ErrFuncNotFound
+func (worker *Worker) RemoveFunc(funcname string) (err error) {
+    if _, ok := worker.funcs[funcname]; !ok {
+        return common.Errorf("The function does not exist: %s", funcname)
     }
-    delete(worker.functions, funcname)
-    job := newJob(common.REQ, common.CANT_DO, []byte(funcname))
-    worker.WriteJob(job)
+    delete(worker.funcs, funcname)
+    if worker.running {
+        worker.removeFunc(funcname)
+    }
     return
+}
+
+// inner remove function
+func (worker *Worker) removeFunc(funcname string) {
+    job := newJob(common.REQ, common.CANT_DO, []byte(funcname))
+    worker.broadcast(job)
 }
 
 // Main loop
 func (worker *Worker) Work() {
-    for _, v := range worker.clients {
+    defer func() {
+        worker.running = false
+    }()
+    for funcname, f := range worker.funcs {
+        worker.addFunc(funcname, f.timeout)
+    }
+    worker.running = true
+    for _, v := range worker.agents {
         go v.Work()
     }
-    for worker.running || len(worker.in) > 0{
-        select {
-        case job := <-worker.in:
-            if job == nil {
-                break
-            }
+    ok := true
+    for ok {
+        if job, ok := <-worker.in; ok {
             switch job.DataType {
-            case common.NO_JOB:
-                // do nothing
             case common.ERROR:
-                _, err := common.GetError(job.Data)
-                worker.err(err)
+                go func() {
+                    _, err := common.GetError(job.Data)
+                    worker.err(err)
+                }()
             case common.JOB_ASSIGN, common.JOB_ASSIGN_UNIQ:
                 go func() {
                     if err := worker.exec(job); err != nil {
@@ -167,54 +183,48 @@ func (worker *Worker) Work() {
                     }
                 }()
             default:
-                worker.JobQueue <- job
+                go worker.handleJob(job)
             }
         }
     }
-    close(worker.in)
+}
+
+// job handler
+func (worker *Worker) handleJob(job *Job) {
+    if worker.JobHandler != nil {
+        if err := worker.JobHandler(job); err != nil {
+            worker.err(err)
+        }
+    }
 }
 
 // Close.
-func (worker *Worker) Close() (err error) {
-    for _, v := range worker.clients {
-        err = v.Close()
-    }
-    worker.running = false
-    return err
-}
-
-// Write a job to job server.
-// Here, the job's mean is not the oraginal mean.
-// Just looks like a network package for job's result or tell job server, there was a fail.
-func (worker *Worker) Broadcast(job *Job) {
-    for _, v := range worker.agents {
-        go func() {
-            if err := v.WriteJob(job); err != nil {
-                worker.err(err)
-            }
-        }()
+func (worker *Worker) Close() {
+    close(worker.in)
+    if worker.limit != nil {
+        close(worker.limit)
     }
 }
 
 // Send a something out, get the samething back.
-func (worker *Worker) Echo(data []byte) (err error) {
+func (worker *Worker) Echo(data []byte) {
     job := newJob(common.REQ, common.ECHO_REQ, data)
-    return worker.WriteJob(job)
+    worker.broadcast(job)
 }
 
 // Remove all of functions.
 // Both from the worker or job servers.
-func (worker *Worker) Reset() (err error) {
+func (worker *Worker) Reset() {
     job := newJob(common.REQ, common.RESET_ABILITIES, nil)
-    err = worker.WriteJob(job)
-    worker.functions = make(JobFunctionMap)
-    return
+    worker.broadcast(job)
+    worker.funcs = make(JobFuncs)
 }
 
 // Set the worker's unique id.
-func (worker *Worker) SetId(id string) (err error) {
+func (worker *Worker) SetId(id string) {
+    worker.Id = id
     job := newJob(common.REQ, common.SET_CLIENT_ID, []byte(id))
-    return worker.WriteJob(job)
+    worker.broadcast(job)
 }
 
 // Execute the job. And send back the result.
@@ -240,11 +250,11 @@ func (worker *Worker) exec(job *Job) (err error) {
         job.UniqueId = string(jobdata[2])
         job.Data = jobdata[3]
     }
-    f, ok := worker.functions[funcname]
+    f, ok := worker.funcs[funcname]
     if !ok {
-        return common.ErrFuncNotFound
+        return common.Errorf("The function does not exist: %s", funcname)
     }
-    result, err := f(job)
+    result, err := f.f(job)
     var datatype uint32
     if err == nil {
         datatype = common.WORK_COMPLETE
@@ -259,7 +269,17 @@ func (worker *Worker) exec(job *Job) (err error) {
     job.magicCode = common.REQ
     job.DataType = datatype
     job.Data = result
-
-    worker.WriteJob(job)
+    job.agent.WriteJob(job)
     return
+}
+
+func (worker *Worker) removeAgent(a *agent) {
+    for k, v := range worker.agents {
+        if v == a {
+            worker.agents = append(worker.agents[:k], worker.agents[k + 1:] ...)
+        }
+    }
+    if len(worker.agents) == 0 {
+        worker.Close()
+    }
 }
