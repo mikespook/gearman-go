@@ -1,46 +1,46 @@
 package main
 
 import (
-    "bitbucket.org/mikespook/gearman-go/gearman"
-    "bitbucket.org/mikespook/gearman-go/gearman/client"
     "log"
+    "sync"
+    "bitbucket.org/mikespook/gearman-go/client"
 )
 
 func main() {
-    client := client.New()
-    defer client.Close()
-    if err := client.AddServer("127.0.0.1:4730"); err != nil {
+    var wg sync.WaitGroup
+
+    c, err := client.New("127.0.0.1:4730")
+    if err != nil {
         log.Fatalln(err)
     }
+    defer c.Close()
     echo := []byte("Hello\x00 world")
-
-    if data, err := client.Echo(echo); err != nil {
-        log.Fatalln(string(data))
+    c.JobHandler = func(job *client.Job) error {
+        log.Printf("%s", job.Data)
+        wg.Done()
+        return nil
     }
 
-    handle, err := client.Do("ToUpper", echo, gearman.JOB_NORMAL)
+    c.ErrHandler = func(e error) {
+        log.Println(e)
+        panic(e)
+    }
+    wg.Add(1)
+    c.Echo(echo)
+    wg.Add(1)
+    handle, err := c.Do("ToUpper", echo, client.JOB_NORMAL)
     if err != nil {
         log.Fatalln(err)
     } else {
         log.Println(handle)
-        job := <-client.JobQueue
-        if data, err := job.Result(); err != nil {
-            log.Fatalln(err)
-        } else {
-            log.Println(string(data))
-        }
     }
 
-    known, running, numerator, denominator, err := client.Status(handle)
-    if err != nil {
-        log.Fatalln(err)
+    c.StatusHandler = func(handle string, known, running bool, numerator, denominator uint64) {
+        log.Printf("%s: %b, %b, %d, %d", handle, known, running, numerator, denominator)
+        wg.Done()
     }
-    if !known {
-        log.Println("Unknown")
-    }
-    if running {
-        log.Printf("%g%%\n", float32(numerator)*100/float32(denominator))
-    } else {
-        log.Println("Not running")
-    }
+    wg.Add(1)
+    c.Status(handle)
+
+    wg.Wait()
 }

@@ -1,4 +1,4 @@
-// Copyright 2012 Xing Xing <mikespook@gmail.com> All rights reserved.
+// Copyright 2011 Xing Xing <mikespook@gmail.com> All rights reserved.
 // Use of this source code is governed by a MIT
 // license that can be found in the LICENSE file.
 
@@ -10,6 +10,7 @@ The protocol was implemented by native way.
 package gearman
 
 import (
-    _ "bitbucket.org/mikespook/gearman-go/gearman/client"
-    _ "bitbucket.org/mikespook/gearman-go/gearman/worker"
+    _ "bitbucket.org/mikespook/gearman-go/common"
+    _ "bitbucket.org/mikespook/gearman-go/client"
+    _ "bitbucket.org/mikespook/gearman-go/worker"
 )
