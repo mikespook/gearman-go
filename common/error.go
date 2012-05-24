@@ -13,16 +13,18 @@ import (
 )
 
 var (
-    ErrInvalidData   = errors.New("Invalid data.")
-    ErrWorkWarning   = errors.New("Work warning.")
-    ErrWorkFail      = errors.New("Work fail.")
-    ErrWorkException = errors.New("Work exeption.")
-    ErrDataType      = errors.New("Invalid data type.")
-    ErrOutOfCap      = errors.New("Out of the capability.")
-    ErrNotConn       = errors.New("Did not connect to job server.")
-    ErrFuncNotFound  = errors.New("The function was not found.")
-    ErrEmptyReading  = errors.New("Empty reading.")
+    ErrJobTimeOut       = errors.New("Do a job time out.")
+    ErrInvalidData      = errors.New("Invalid data.")
+    ErrWorkWarning      = errors.New("Work warning.")
+    ErrWorkFail         = errors.New("Work fail.")
+    ErrWorkException    = errors.New("Work exeption.")
+    ErrDataType         = errors.New("Invalid data type.")
+    ErrOutOfCap         = errors.New("Out of the capability.")
+    ErrNotConn          = errors.New("Did not connect to job server.")
+    ErrFuncNotFound     = errors.New("The function was not found.")
+    ErrEmptyReading     = errors.New("Empty reading.")
 )
+func DisablePanic() {recover()}
 
 // Extract the error message
 func GetError(data []byte) (eno syscall.Errno, err error) {

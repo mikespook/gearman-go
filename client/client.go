@@ -8,6 +8,7 @@ package client
 import (
     "io"
     "net"
+    "time"
     "bytes"
     "strconv"
     "bitbucket.org/mikespook/golib/autoinc"
@@ -32,6 +33,7 @@ type Client struct {
     ErrHandler common.ErrorHandler
     JobHandler JobHandler
     StatusHandler StatusHandler
+    TimeOut time.Duration
 
     in chan []byte
     out chan *Job
@@ -55,6 +57,7 @@ func New(addr string) (client *Client, err error) {
         out: make(chan *Job, common.QUEUE_SIZE),
         conn: conn,
         ai: autoinc.New(0, 1),
+        TimeOut: time.Second,
     }
     go client.inLoop()
     go client.outLoop()
@@ -75,9 +78,14 @@ func (client *Client) outLoop() {
 
 // in loop
 func (client *Client) inLoop() {
+    defer common.DisablePanic()
     for {
         rel, err := client.read()
         if err != nil {
+            if err == common.ErrEmptyReading {
+                client.Close()
+                break
+            }
             client.err(err)
             continue
         }
@@ -227,8 +235,20 @@ func (client *Client) Do(funcname string, data []byte, flag byte) (handle string
     rel = append(rel, data...)                      // len(data)
     client.writeJob(newJob(common.REQ, datatype, rel))
     // Waiting for JOB_CREATED
-    job := <-client.jobCreated
-    return string(job.Data), nil
+    timeout := make(chan bool)
+    defer close(timeout)
+    go func() {
+        defer common.DisablePanic()
+        time.Sleep(client.TimeOut)
+        timeout <- true
+    }()
+    select {
+    case job := <-client.jobCreated:
+        return string(job.Data), nil
+    case <-timeout:
+        return "", common.ErrJobTimeOut
+    }
+    return
 }
 
 // Get job status from job server.

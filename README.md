@@ -56,3 +56,8 @@ http://twitter.com/mikespook
 
  * 0.1      Refactoring code, redesign the API.
  * 0.0.1    Initial implementation, ugly code-style, slow profermance and unstable API.
+
+# TODO
+
+ * Can not grab a job correctly.
+ * The worker should can reconnect to the job server.

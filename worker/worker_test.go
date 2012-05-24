@@ -5,7 +5,7 @@ import "testing"
 var worker *Worker
 
 func init() {
-    worker = NewWorker()
+    worker = New(Unlimited)
 }
 
 func TestWorkerAddServer(t *testing.T) {
@@ -14,59 +14,31 @@ func TestWorkerAddServer(t *testing.T) {
         t.Error(err)
     }
 
-    if l := len(worker.clients); l != 1 {
-        t.Log(worker.clients)
+    if l := len(worker.agents); l != 1 {
+        t.Log(worker.agents)
         t.Error("The length of server list should be 1.")
     }
 }
 
-func foobar(job *WorkerJob) ([]byte, error) {
+func foobar(job *Job) ([]byte, error) {
     return nil, nil
 }
 
 func TestWorkerAddFunction(t *testing.T) {
-    if err := worker.AddFunction("foobar", foobar, 0); err != nil {
+    if err := worker.AddFunc("foobar", foobar, 0); err != nil {
         t.Error(err)
     }
-    if err := worker.AddFunction("timeout", foobar, 5); err != nil {
+    if err := worker.AddFunc("timeout", foobar, 5); err != nil {
         t.Error(err)
     }
-    if l := len(worker.functions); l != 2 {
-        t.Log(worker.functions)
+    if l := len(worker.funcs); l != 2 {
+        t.Log(worker.funcs)
         t.Errorf("The length of function map should be %d.", 2)
     }
 }
 
-func TestWorkerEcho(t *testing.T) {
-    if err := worker.Echo([]byte("Hello World")); err != nil {
-        t.Error(err)
-    }
-}
-
-/*
-func TestWorkerResult(t *testing.T) {
-    if job := worker.LastResult(); job == nil {
-        t.Error("Nothing in result.")
-    } else {
-        t.Log(job)
-    }
-}
-*/
-
-func TestWorkerRemoveFunction(t *testing.T) {
-    if err := worker.RemoveFunction("foobar"); err != nil {
-        t.Error(err)
-    }
-}
-
-func TestWorkerReset(t *testing.T) {
-    if err := worker.Reset(); err != nil {
-        t.Error(err)
-    }
-}
-
-func TestWorkerClose(t *testing.T) {
-    if err := worker.Close(); err != nil {
+func TestWorkerRemoveFunc(t *testing.T) {
+    if err := worker.RemoveFunc("foobar"); err != nil {
         t.Error(err)
     }
 }
