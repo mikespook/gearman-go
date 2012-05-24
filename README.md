@@ -11,11 +11,11 @@ in the LICENSE file.
 
 This will install the client:
 
-> $ go get bitbucket.org/mikespook/gearman-go/gearman/client
+> $ go get bitbucket.org/mikespook/gearman-go/client
 	
 This will install the worker:
 
-> $ go get bitbucket.org/mikespook/gearman-go/gearman/worker
+> $ go get bitbucket.org/mikespook/gearman-go/worker
 
 This will install the client and the worker automatically:
 
@@ -46,8 +46,13 @@ This will install the client and the worker automatically:
 
 # Contacts
 
-xingxing<mikespook@gmail.com>
+Xing Xing <mikespook@gmail.com>
 
 http://mikespook.com
 
 http://twitter.com/mikespook
+
+# History
+
+ * 0.1      Refactoring code, redesign the API.
+ * 0.0.1    Initial implementation, ugly code-style, slow profermance and unstable API.
