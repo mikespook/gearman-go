@@ -48,7 +48,7 @@ func (a *agent) outLoop() {
 // inputing loop
 func (a *agent) inLoop() {
     defer func() {
-        a.conn.Close()
+        recover()
         close(a.in)
         close(a.out)
         a.worker.removeAgent(a)
@@ -84,6 +84,10 @@ func (a *agent) inLoop() {
             a.worker.in <- job
         }
     }
+}
+
+func (a *agent) Close() {
+    a.conn.Close()
 }
 
 func (a *agent) Work() {
