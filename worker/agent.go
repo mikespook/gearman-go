@@ -36,8 +36,9 @@ func newAgent(addr string, worker *Worker) (a *agent, err error) {
 // outputing loop
 func (a *agent) outLoop() {
     ok := true
+    var job *Job
     for ok {
-        if job, ok := <-a.out; ok {
+        if job, ok = <-a.out; ok {
             if err := a.write(job.Encode()); err != nil {
                 a.worker.err(err)
             }
