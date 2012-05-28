@@ -23,6 +23,7 @@ var (
     ErrNotConn          = errors.New("Did not connect to job server.")
     ErrFuncNotFound     = errors.New("The function was not found.")
     ErrEmptyReading     = errors.New("Empty reading.")
+    ErrNoActiveAgent    = errors.New("No active agent.")
 )
 func DisablePanic() {recover()}
 

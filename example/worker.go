@@ -19,6 +19,7 @@ func main() {
     log.Println("Starting ...")
     defer log.Println("Shutdown complete!")
     w := worker.New(worker.Unlimited)
+    defer w.Close()
     w.ErrHandler = func(e error) {
         log.Println(e)
     }

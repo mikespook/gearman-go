@@ -159,6 +159,9 @@ func (worker *Worker) removeFunc(funcname string) {
 func (worker *Worker) Work() {
     defer func() {
         worker.running = false
+        for _, v := range worker.agents {
+            v.Close()
+        }
     }()
     for funcname, f := range worker.funcs {
         worker.addFunc(funcname, f.timeout)
@@ -168,8 +171,9 @@ func (worker *Worker) Work() {
         go v.Work()
     }
     ok := true
+    var job *Job
     for ok {
-        if job, ok := <-worker.in; ok {
+        if job, ok = <-worker.in; ok {
             switch job.DataType {
             case common.ERROR:
                 go func() {
@@ -280,6 +284,6 @@ func (worker *Worker) removeAgent(a *agent) {
         }
     }
     if len(worker.agents) == 0 {
-        worker.Close()
+        worker.err(common.ErrNoActiveAgent)
     }
 }
