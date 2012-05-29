@@ -66,11 +66,11 @@ func (job *Job) Encode() (data []byte) {
 
 // Send some datas to client.
 // Using this in a job's executing.
-func (job *Job) UpdateData(data []byte, iswaring bool) {
+func (job *Job) UpdateData(data []byte, iswarning bool) {
     result := append([]byte(job.Handle), 0)
     result = append(result, data...)
     var datatype uint32
-    if iswaring {
+    if iswarning {
         datatype = common.WORK_WARNING
     } else {
         datatype = common.WORK_DATA
