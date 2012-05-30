@@ -235,17 +235,10 @@ func (client *Client) Do(funcname string, data []byte, flag byte) (handle string
     rel = append(rel, data...)                      // len(data)
     client.writeJob(newJob(common.REQ, datatype, rel))
     // Waiting for JOB_CREATED
-    timeout := make(chan bool)
-    defer close(timeout)
-    go func() {
-        defer common.DisablePanic()
-        time.Sleep(client.TimeOut)
-        timeout <- true
-    }()
     select {
     case job := <-client.jobCreated:
         return string(job.Data), nil
-    case <-timeout:
+    case <-time.After(client.TimeOut):
         return "", common.ErrJobTimeOut
     }
     return
