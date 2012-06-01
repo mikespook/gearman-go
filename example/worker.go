@@ -22,6 +22,15 @@ func main() {
     defer w.Close()
     w.ErrHandler = func(e error) {
         log.Println(e)
+        if e == worker.ErrConnection {
+            proc, err := os.FindProcess(os.Getpid())
+            if err != nil {
+                log.Println(err)
+            }
+            if err := proc.Signal(os.Interrupt); err != nil {
+                log.Println(err)
+            }
+        }
     }
     w.JobHandler = func(job *worker.Job) error {
         log.Printf("H=%s, UID=%s, Data=%s\n", job.Handle,

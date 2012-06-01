@@ -13,6 +13,10 @@ const (
     Unlimited = 0
     OneByOne = 1
 )
+
+var (
+    ErrConnection = common.ErrConnection
+)
 // Job handler
 type JobHandler func(*Job) error
 
