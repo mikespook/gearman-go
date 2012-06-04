@@ -63,10 +63,8 @@ Xing Xing <mikespook@gmail.com>
 
 # History
 
+ * 0.1.1    Fixed the issue of grabbing jobs.
  * 0.1      Code refactoring; Redesign the API.
  * 0.0.1    Initial implementation, ugly code-style, slow profermance and unstable API.
 
 # TODO
-
- * Can not grab a job correctly.
- * Worker's auto-reconnection.
