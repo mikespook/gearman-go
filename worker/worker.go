@@ -237,6 +237,15 @@ func (worker *Worker) SetId(id string) {
 
 // Execute the job. And send back the result.
 func (worker *Worker) exec(job *Job) (err error) {
+    defer func() {
+        if r := recover(); r != nil {
+            if e, ok := r.(error); ok {
+                err = e
+            } else {
+                err = common.ErrUnknown
+            }
+        }
+    } ()
     if worker.limit != nil {
         <-worker.limit
         defer func() {

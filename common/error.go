@@ -25,6 +25,7 @@ var (
     ErrConnection       = errors.New("Connection error.")
     ErrNoActiveAgent    = errors.New("No active agent.")
     ErrExecTimeOut      = errors.New("Executing time out.")
+    ErrUnknown            = errors.New("Unknown error.")
 )
 func DisablePanic() {recover()}
 
