@@ -259,11 +259,11 @@ func (worker *Worker) exec(job *Job) (err error) {
     }
     var result []byte
     if worker.limit != nil {
-        defer func() {
-            worker.limit <- true
-        }()
         select {
         case <-worker.limit:
+            defer func() {
+                worker.limit <- true
+            }()
         case <-time.After(time.Second * time.Duration(f.timeout)):
             err = common.Errorf("The function was executed timeout: %s", funcname)
         }
