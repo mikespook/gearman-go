@@ -7,6 +7,7 @@ package worker
 import (
     "io"
     "net"
+    "time"
     "bitbucket.org/mikespook/gearman-go/common"
 )
 
@@ -57,12 +58,17 @@ func (a *agent) inLoop() {
         a.worker.removeAgent(a)
     }()
     noop := true
+    go func() {
+        for a.worker.running {
+            if noop && len(a.in) == 0 {
+                a.WriteJob(newJob(common.REQ, common.GRAB_JOB, nil))
+            }
+            <-time.After(time.Second)
+        }
+    }()
     for a.worker.running {
         RESTART:
         // got noop msg and in queue is zero, grab job
-        if noop && len(a.in) == 0 {
-            a.WriteJob(newJob(common.REQ, common.GRAB_JOB, nil))
-        }
         rel, err := a.read()
         if err != nil {
             if err == common.ErrConnection {
