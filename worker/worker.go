@@ -5,6 +5,7 @@
 package worker
 
 import (
+    "time"
     "bytes"
     "bitbucket.org/mikespook/gearman-go/common"
 )
@@ -237,12 +238,6 @@ func (worker *Worker) SetId(id string) {
 
 // Execute the job. And send back the result.
 func (worker *Worker) exec(job *Job) (err error) {
-    if worker.limit != nil {
-        <-worker.limit
-        defer func() {
-            worker.limit <- true
-        }()
-    }
     var limit int
     if job.DataType == common.JOB_ASSIGN {
         limit = 3
@@ -262,7 +257,20 @@ func (worker *Worker) exec(job *Job) (err error) {
     if !ok {
         return common.Errorf("The function does not exist: %s", funcname)
     }
-    result, err := f.f(job)
+    var result []byte
+    if worker.limit != nil {
+        defer func() {
+            worker.limit <- true
+        }()
+        select {
+        case <-worker.limit:
+        case <-time.After(time.Second * time.Duration(f.timeout)):
+            err = common.Errorf("The function was executed timeout: %s", funcname)
+        }
+    }
+    if err == nil {
+        result, err = f.f(job)
+    }
     var datatype uint32
     if err == nil {
         datatype = common.WORK_COMPLETE
