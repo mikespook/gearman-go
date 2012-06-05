@@ -5,6 +5,7 @@
 package worker
 
 import (
+    "time"
     "bytes"
     "bitbucket.org/mikespook/gearman-go/common"
 )
@@ -271,21 +272,36 @@ func (worker *Worker) exec(job *Job) (err error) {
     if !ok {
         return common.Errorf("The function does not exist: %s", funcname)
     }
-    result, err := f.f(job)
+    rslt := make(chan *result)
+    defer close(rslt)
+    go func() {
+        defer func() {recover()}()
+        var r result
+        r.data, r.err = f.f(job)
+        rslt <- &r
+    }()
+    var r *result
+    select {
+    case r = <-rslt:
+    case <-time.After(time.Duration(f.timeout) * time.Second):
+        r = &result{data:nil, err: common.ErrExecTimeOut}
+        job.cancel()
+    }
     var datatype uint32
-    if err == nil {
+    if r.err == nil {
         datatype = common.WORK_COMPLETE
     } else {
-        if result == nil {
+        if r.data == nil {
             datatype = common.WORK_FAIL
         } else {
             datatype = common.WORK_EXCEPTION
         }
+        err = r.err
     }
 
     job.magicCode = common.REQ
     job.DataType = datatype
-    job.Data = result
+    job.Data = r.data
     job.agent.WriteJob(job)
     return
 }
@@ -299,4 +315,9 @@ func (worker *Worker) removeAgent(a *agent) {
     if len(worker.agents) == 0 {
         worker.err(common.ErrNoActiveAgent)
     }
+}
+
+type result struct {
+    data []byte
+    err error
 }

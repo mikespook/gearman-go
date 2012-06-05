@@ -16,13 +16,16 @@ type Job struct {
     Handle, UniqueId    string
     agent               *agent
     magicCode, DataType uint32
+    c chan bool
 }
 
 // Create a new job
 func newJob(magiccode, datatype uint32, data []byte) (job *Job) {
     return &Job{magicCode: magiccode,
         DataType: datatype,
-        Data:     data}
+        Data:     data,
+        c: make(chan bool),
+    }
 }
 
 // Decode job from byte slice
@@ -87,4 +90,14 @@ func (job *Job) UpdateStatus(numerator, denominator int) {
     result = append(result, n...)
     result = append(result, d...)
     job.agent.WriteJob(newJob(common.REQ, common.WORK_STATUS, result))
+}
+
+// cancel the job executing
+func (job *Job) cancel() {
+    job.c <- true
+}
+
+// When a job was canceled, return a true form a channel
+func (job *Job) Canceled() chan bool {
+    return job.c
 }

@@ -72,7 +72,6 @@ func (a *agent) inLoop() {
         rel, err := a.read()
         if err != nil {
             if err == common.ErrConnection {
-                // TODO: reconnection
                 for i:= 0; i < 3 && a.worker.running; i++ {
                     if conn, err := net.Dial(common.NETWORK, a.addr); err != nil {
                         a.worker.err(common.Errorf("Reconnection: %d faild", i))
