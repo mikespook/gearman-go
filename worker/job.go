@@ -46,15 +46,14 @@ func decodeJob(data []byte) (job *Job, err error) {
 // Encode a job to byte slice
 func (job *Job) Encode() (data []byte) {
     l := len(job.Data)
-    tl := l
     if job.Handle != "" {
-        tl += len(job.Handle) + 1
+        l += len(job.Handle) + 1
     }
-    data = make([]byte, 0, tl + 12)
+    data = make([]byte, 0, l + 12)
 
     magiccode := common.Uint32ToBytes(job.magicCode)
     datatype := common.Uint32ToBytes(job.DataType)
-    datalength := common.Uint32ToBytes(uint32(tl))
+    datalength := common.Uint32ToBytes(uint32(l))
 
     data = append(data, magiccode[:]...)
     data = append(data, datatype[:]...)
