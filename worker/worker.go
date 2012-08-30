@@ -272,20 +272,26 @@ func (worker *Worker) exec(job *Job) (err error) {
     if !ok {
         return common.Errorf("The function does not exist: %s", funcname)
     }
-    rslt := make(chan *result)
-    defer close(rslt)
-    go func() {
-        defer func() {recover()}()
-        var r result
+    var r result
+    if f.timeout == 0 {
         r.data, r.err = f.f(job)
-        rslt <- &r
-    }()
-    var r *result
-    select {
-    case r = <-rslt:
-    case <-time.After(time.Duration(f.timeout) * time.Second):
-        r = &result{data:nil, err: common.ErrExecTimeOut}
-        job.cancel()
+    } else {
+        rslt := make(chan *result)
+        defer close(rslt)
+        go func() {
+            defer func() {recover()}()
+            var r result
+            r.data, r.err = f.f(job)
+            rslt <- &r
+        }()
+        select {
+        case re := <-rslt:
+            r.data = re.data
+            r.err = re.err
+        case <-time.After(time.Duration(f.timeout) * time.Second):
+            r.err = common.ErrExecTimeOut
+            job.cancel()
+        }
     }
     var datatype uint32
     if r.err == nil {

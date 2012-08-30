@@ -16,6 +16,6 @@ def main():
     check_request_status(completed_job_request)
 
 if __name__ == '__main__':
-    for i in range(100):
+    for i in range(2):
         main()
 

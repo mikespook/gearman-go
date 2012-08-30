@@ -9,7 +9,7 @@ import (
 )
 
 func ToUpper(job *worker.Job) ([]byte, error) {
-    log.Printf("Handle=[%s]; UID=[%s], Data=[%s]\n",
+    log.Printf("ToUpper -- Handle=[%s]; UID=[%s], Data=[%s]\n",
         job.Handle, job.UniqueId, job.Data)
     data := []byte(strings.ToUpper(string(job.Data)))
     return data, nil
@@ -33,8 +33,8 @@ func main() {
         }
     }
     w.JobHandler = func(job *worker.Job) error {
-        log.Printf("H=%s, UID=%s, Data=%s\n", job.Handle,
-            job.UniqueId, job.Data)
+        log.Printf("H=%s, UID=%s, Data=%s, DataType=%d\n", job.Handle,
+            job.UniqueId, job.Data, job.DataType)
         return nil
     }
     w.AddServer("127.0.0.1:4730")

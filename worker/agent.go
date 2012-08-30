@@ -7,7 +7,6 @@ package worker
 import (
     "io"
     "net"
-    "time"
     "bitbucket.org/mikespook/gearman-go/common"
 )
 
@@ -33,6 +32,8 @@ func newAgent(addr string, worker *Worker) (a *agent, err error) {
         in: make(chan []byte, common.QUEUE_SIZE),
         out: make(chan *Job, common.QUEUE_SIZE),
     }
+    // reset abilities
+    a.WriteJob(newJob(common.REQ, common.RESET_ABILITIES, nil))
     return
 }
 
@@ -52,21 +53,15 @@ func (a *agent) outLoop() {
 // inputing loop
 func (a *agent) inLoop() {
     defer func() {
-        recover()
+        if r := recover(); r != nil {
+            a.worker.err(common.Errorf("Exiting: %s", r))
+        }
         close(a.in)
         close(a.out)
         a.worker.removeAgent(a)
     }()
-    noop := true
-    go func() {
-        for a.worker.running {
-            if noop && len(a.in) == 0 {
-                a.WriteJob(newJob(common.REQ, common.GRAB_JOB, nil))
-            }
-            <-time.After(time.Second)
-        }
-    }()
     for a.worker.running {
+        a.WriteJob(newJob(common.REQ, common.PRE_SLEEP, nil))
         RESTART:
         // got noop msg and in queue is zero, grab job
         rel, err := a.read()
@@ -94,10 +89,7 @@ func (a *agent) inLoop() {
         }
         switch job.DataType {
         case common.NOOP:
-            noop = true
-        case common.NO_JOB:
-            noop = false
-            a.WriteJob(newJob(common.REQ, common.PRE_SLEEP, nil))
+            a.WriteJob(newJob(common.REQ, common.GRAB_JOB_UNIQ, nil))
         case common.ERROR, common.ECHO_RES, common.JOB_ASSIGN_UNIQ, common.JOB_ASSIGN:
             job.agent = a
             a.worker.in <- job
