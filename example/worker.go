@@ -3,17 +3,28 @@ package main
 import (
     "os"
     "log"
+    "time"
     "strings"
     "bitbucket.org/mikespook/golib/signal"
     "bitbucket.org/mikespook/gearman-go/worker"
 )
 
 func ToUpper(job *worker.Job) ([]byte, error) {
-    log.Printf("ToUpper -- Handle=[%s]; UID=[%s], Data=[%s]\n",
+    log.Printf("ToUpper: Handle=[%s]; UID=[%s], Data=[%s]\n",
         job.Handle, job.UniqueId, job.Data)
     data := []byte(strings.ToUpper(string(job.Data)))
     return data, nil
 }
+
+func ToUpperDelay10(job *worker.Job) ([]byte, error) {
+    log.Printf("ToUpperDelay10: Handle=[%s]; UID=[%s], Data=[%s]\n",
+        job.Handle, job.UniqueId, job.Data)
+    time.Sleep(10 * time.Second)
+    data := []byte(strings.ToUpper(string(job.Data)))
+    return data, nil
+}
+
+
 
 func main() {
     log.Println("Starting ...")
@@ -39,7 +50,8 @@ func main() {
     }
     w.AddServer("127.0.0.1:4730")
     w.AddFunc("ToUpper", ToUpper, 0)
-    //w.AddFunc("ToUpperTimeOut5", ToUpper, 5)
+    w.AddFunc("ToUpperTimeOut5", ToUpperDelay10, 5)
+    w.AddFunc("ToUpperTimeOut20", ToUpperDelay10, 20)
     go w.Work()
     sh := signal.NewHandler()
     sh.Bind(os.Interrupt, func() bool {return true})

@@ -15,7 +15,13 @@ def main():
     completed_job_request = client.submit_job("ToUpper", "arbitrary binary data")
     check_request_status(completed_job_request)
 
+    completed_job_request = client.submit_job("ToUpperTimeOut5", "arbitrary binary data")
+    check_request_status(completed_job_request)
+
+    completed_job_request = client.submit_job("ToUpperTimeOut20", "arbitrary binary data")
+    check_request_status(completed_job_request)
+
+
 if __name__ == '__main__':
-    for i in range(2):
-        main()
+    main()
 
