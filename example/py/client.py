@@ -12,15 +12,25 @@ def check_request_status(job_request):
 
 def main():
     client = gearman.GearmanClient(['localhost:4730', 'otherhost:4730'])
-    completed_job_request = client.submit_job("ToUpper", "arbitrary binary data")
-    check_request_status(completed_job_request)
+    try:
+        completed_job_request = client.submit_job("ToUpper", "arbitrary binary data")
+        check_request_status(completed_job_request)
+    except Exception as e:
+        print type(e)
 
-    completed_job_request = client.submit_job("ToUpperTimeOut5", "arbitrary binary data")
-    check_request_status(completed_job_request)
 
-    completed_job_request = client.submit_job("ToUpperTimeOut20", "arbitrary binary data")
-    check_request_status(completed_job_request)
+    try:
+        completed_job_request = client.submit_job("ToUpperTimeOut5", "arbitrary binary data")
+        check_request_status(completed_job_request)
+    except Exception as e:
+        print type(e)
 
+
+    try:
+        completed_job_request = client.submit_job("ToUpperTimeOut20", "arbitrary binary data")
+        check_request_status(completed_job_request)
+    except Exception as e:
+        print type(e)
 
 if __name__ == '__main__':
     main()

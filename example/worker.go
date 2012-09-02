@@ -49,7 +49,7 @@ func main() {
         return nil
     }
     w.AddServer("127.0.0.1:4730")
-    w.AddFunc("ToUpper", ToUpper, 0)
+    w.AddFunc("ToUpper", ToUpper, worker.Immediately)
     w.AddFunc("ToUpperTimeOut5", ToUpperDelay10, 5)
     w.AddFunc("ToUpperTimeOut20", ToUpperDelay10, 20)
     go w.Work()

@@ -91,12 +91,18 @@ func (job *Job) UpdateStatus(numerator, denominator int) {
     job.agent.WriteJob(newJob(common.REQ, common.WORK_STATUS, result))
 }
 
+// close the job
+func (job *Job) Close() {
+    close(job.c)
+}
+
 // cancel the job executing
 func (job *Job) cancel() {
+    defer func() {recover()}()
     job.c <- true
 }
 
 // When a job was canceled, return a true form a channel
-func (job *Job) Canceled() chan bool {
+func (job *Job) Canceled() <-chan bool {
     return job.c
 }
