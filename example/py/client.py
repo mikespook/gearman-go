@@ -32,6 +32,18 @@ def main():
     except Exception as e:
         print type(e)
 
+    try:
+        completed_job_request = client.submit_job("SysInfo", "")
+        check_request_status(completed_job_request)
+    except Exception as e:
+        print type(e)
+
+    try:
+        completed_job_request = client.submit_job("MemInfo", "")
+        check_request_status(completed_job_request)
+    except Exception as e:
+        print type(e)
+
 if __name__ == '__main__':
     main()
 

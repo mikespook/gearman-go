@@ -52,6 +52,8 @@ func main() {
     w.AddFunc("ToUpper", ToUpper, worker.Immediately)
     w.AddFunc("ToUpperTimeOut5", ToUpperDelay10, 5)
     w.AddFunc("ToUpperTimeOut20", ToUpperDelay10, 20)
+    w.AddFunc("SysInfo", worker.SysInfo, worker.Immediately)
+    w.AddFunc("MemInfo", worker.MemInfo, worker.Immediately)
     go w.Work()
     sh := signal.NewHandler()
     sh.Bind(os.Interrupt, func() bool {return true})
