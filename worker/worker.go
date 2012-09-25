@@ -5,6 +5,7 @@
 package worker
 
 import (
+    "time"
     "bytes"
     "bitbucket.org/mikespook/gearman-go/common"
 )
@@ -12,6 +13,8 @@ import (
 const (
     Unlimited = 0
     OneByOne = 1
+
+    Immediately = 0
 )
 
 var (
@@ -20,7 +23,7 @@ var (
 // Job handler
 type JobHandler func(*Job) error
 
-type JobFunc func(job *Job) ([]byte, error)
+type JobFunc func(*Job) ([]byte, error)
 
 // The definition of the callback function.
 type jobFunc struct {
@@ -178,21 +181,20 @@ func (worker *Worker) Work() {
     var job *Job
     for ok {
         if job, ok = <-worker.in; ok {
-            switch job.DataType {
-            case common.ERROR:
-                go func() {
+            go func() {
+                defer job.Close()
+                switch job.DataType {
+                case common.ERROR:
                     _, err := common.GetError(job.Data)
                     worker.err(err)
-                }()
-            case common.JOB_ASSIGN, common.JOB_ASSIGN_UNIQ:
-                go func() {
+                case common.JOB_ASSIGN, common.JOB_ASSIGN_UNIQ:
                     if err := worker.exec(job); err != nil {
                         worker.err(err)
                     }
-                }()
-            default:
-                go worker.handleJob(job)
-            }
+                default:
+                    worker.handleJob(job)
+                }
+            }()
         }
     }
 }
@@ -271,21 +273,28 @@ func (worker *Worker) exec(job *Job) (err error) {
     if !ok {
         return common.Errorf("The function does not exist: %s", funcname)
     }
-    result, err := f.f(job)
+    var r *result
+    if f.timeout == 0 {
+        d, e := f.f(job)
+        r = &result{data:d, err: e}
+    } else {
+        r = execTimeout(f.f, job, time.Duration(f.timeout) * time.Second)
+    }
     var datatype uint32
-    if err == nil {
+    if r.err == nil {
         datatype = common.WORK_COMPLETE
     } else {
-        if result == nil {
+        if r.data == nil {
             datatype = common.WORK_FAIL
         } else {
             datatype = common.WORK_EXCEPTION
         }
+        err = r.err
     }
 
     job.magicCode = common.REQ
     job.DataType = datatype
-    job.Data = result
+    job.Data = r.data
     job.agent.WriteJob(job)
     return
 }
@@ -299,4 +308,26 @@ func (worker *Worker) removeAgent(a *agent) {
     if len(worker.agents) == 0 {
         worker.err(common.ErrNoActiveAgent)
     }
+}
+
+type result struct {
+    data []byte
+    err error
+}
+
+func execTimeout(f JobFunc, job *Job, timeout time.Duration) (r *result) {
+    rslt := make(chan *result)
+    defer close(rslt)
+    go func() {
+        defer func() {recover()}()
+        d, e := f(job)
+        rslt <- &result{data: d, err: e}
+    }()
+    select {
+    case r = <-rslt:
+    case <-time.After(timeout):
+        go job.cancel()
+        return &result{err:common.ErrExecTimeOut}
+    }
+    return r
 }

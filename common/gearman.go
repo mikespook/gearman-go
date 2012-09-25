@@ -5,6 +5,11 @@
 
 package common
 
+import (
+    "bytes"
+    "encoding/binary"
+)
+
 const (
     NETWORK = "tcp"
     // queue size
@@ -55,12 +60,25 @@ const (
 
 // Decode [4]byte to uint32 
 func BytesToUint32(buf [4]byte) uint32 {
-    return uint32(buf[0])<<24 + uint32(buf[1])<<16 + uint32(buf[2])<<8 +
-        uint32(buf[3])
+    var r uint32
+    b := bytes.NewBuffer(buf[:])
+    err := binary.Read(b, binary.BigEndian, &r)
+    if err != nil {
+        return 0
+    }
+    return r
 }
 
 // Encode uint32 to [4]byte
 func Uint32ToBytes(i uint32) [4]byte {
-    return [4]byte{byte((i >> 24) & 0xff), byte((i >> 16) & 0xff),
-        byte((i >> 8) & 0xff), byte(i & 0xff),}
+    buf := new(bytes.Buffer)
+    err := binary.Write(buf, binary.BigEndian, i)
+    if err != nil {
+        return [4]byte{0, 0, 0, 0}
+    }
+    var r [4]byte
+    for k, v := range buf.Bytes() {
+        r[k] = v
+    }
+    return r
 }

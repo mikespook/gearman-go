@@ -16,13 +16,16 @@ type Job struct {
     Handle, UniqueId    string
     agent               *agent
     magicCode, DataType uint32
+    c chan bool
 }
 
 // Create a new job
 func newJob(magiccode, datatype uint32, data []byte) (job *Job) {
     return &Job{magicCode: magiccode,
         DataType: datatype,
-        Data:     data}
+        Data:     data,
+        c: make(chan bool),
+    }
 }
 
 // Decode job from byte slice
@@ -42,23 +45,29 @@ func decodeJob(data []byte) (job *Job, err error) {
 
 // Encode a job to byte slice
 func (job *Job) Encode() (data []byte) {
-    l := len(job.Data)
-    tl := l
-    if job.Handle != "" {
-        tl += len(job.Handle) + 1
+    var l int
+    if job.DataType == common.WORK_FAIL {
+        l = len(job.Handle)
+    } else {
+        l = len(job.Data)
+        if job.Handle != "" {
+            l += len(job.Handle) + 1
+        }
     }
-    data = make([]byte, 0, tl + 12)
+    data = make([]byte, 0, l + 12)
 
     magiccode := common.Uint32ToBytes(job.magicCode)
     datatype := common.Uint32ToBytes(job.DataType)
-    datalength := common.Uint32ToBytes(uint32(tl))
+    datalength := common.Uint32ToBytes(uint32(l))
 
     data = append(data, magiccode[:]...)
     data = append(data, datatype[:]...)
     data = append(data, datalength[:]...)
     if job.Handle != "" {
         data = append(data, []byte(job.Handle)...)
-        data = append(data, 0)
+        if job.DataType != common.WORK_FAIL {
+           data = append(data, 0)
+       }
     }
     data = append(data, job.Data...)
     return
@@ -87,4 +96,20 @@ func (job *Job) UpdateStatus(numerator, denominator int) {
     result = append(result, n...)
     result = append(result, d...)
     job.agent.WriteJob(newJob(common.REQ, common.WORK_STATUS, result))
+}
+
+// close the job
+func (job *Job) Close() {
+    close(job.c)
+}
+
+// cancel the job executing
+func (job *Job) cancel() {
+    defer func() {recover()}()
+    job.c <- true
+}
+
+// When a job was canceled, return a true form a channel
+func (job *Job) Canceled() <-chan bool {
+    return job.c
 }

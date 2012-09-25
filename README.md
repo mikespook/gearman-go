@@ -32,7 +32,7 @@ Install both:
         log.Println(e)
     }
     w.AddServer("127.0.0.1:4730")
-    w.AddFunc("ToUpper", ToUpper, 0)
+    w.AddFunc("ToUpper", ToUpper, worker.Immediately)
     w.AddFunc("ToUpperTimeOut5", ToUpper, 5)
     w.Work()
 
@@ -63,6 +63,7 @@ Xing Xing <mikespook@gmail.com>
 
 # History
 
+ * 0.1.2    Fixed issues: timeout executing, resources leaking.
  * 0.1.1    Fixed the issue of grabbing jobs.
  * 0.1      Code refactoring; Redesign the API.
  * 0.0.1    Initial implementation, ugly code-style, slow profermance and unstable API.
