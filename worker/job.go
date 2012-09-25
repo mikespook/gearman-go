@@ -45,9 +45,14 @@ func decodeJob(data []byte) (job *Job, err error) {
 
 // Encode a job to byte slice
 func (job *Job) Encode() (data []byte) {
-    l := len(job.Data)
-    if job.Handle != "" {
-        l += len(job.Handle) + 1
+    var l int
+    if job.DataType == common.WORK_FAIL {
+        l = len(job.Handle)
+    } else {
+        l = len(job.Data)
+        if job.Handle != "" {
+            l += len(job.Handle) + 1
+        }
     }
     data = make([]byte, 0, l + 12)
 
@@ -60,7 +65,9 @@ func (job *Job) Encode() (data []byte) {
     data = append(data, datalength[:]...)
     if job.Handle != "" {
         data = append(data, []byte(job.Handle)...)
-        data = append(data, 0)
+        if job.DataType != common.WORK_FAIL {
+           data = append(data, 0)
+       }
     }
     data = append(data, job.Data...)
     return
