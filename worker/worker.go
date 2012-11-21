@@ -178,8 +178,8 @@ func (worker *Worker) Work() {
         go v.Work()
     }
     ok := true
-    var job *Job
     for ok {
+        var job *Job
         if job, ok = <-worker.in; ok {
             go func() {
                 defer job.Close()
