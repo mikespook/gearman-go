@@ -35,4 +35,14 @@ func TestBytesToUint32s(t *testing.T) {
     }
 }
 
+func BenchmarkByteToUnit32(b * testing.B) {
+    for i := 0; i < b.N; i++ {
+        BytesToUint32([4]byte{0xF, 0xF, 0xF, 0xF});
+    }
+}
 
+func BenchmarkUint32ToByte(b *testing.B) {
+    for i := 0; i < b.N; i++ {
+        Uint32ToBytes(123456);
+    }
+}
