@@ -7,7 +7,7 @@ package worker
 
 import (
     "strconv"
-    "bitbucket.org/mikespook/gearman-go/common"
+    "github.com/mikespook/gearman-go/common"
 )
 
 // Worker side job

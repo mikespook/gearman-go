@@ -3,7 +3,7 @@ package main
 import (
     "log"
     "sync"
-    "bitbucket.org/mikespook/gearman-go/client"
+    "github.com/mikespook/gearman-go/client"
 )
 
 func main() {

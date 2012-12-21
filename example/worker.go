@@ -5,8 +5,8 @@ import (
     "log"
     "time"
     "strings"
-    "bitbucket.org/mikespook/golib/signal"
-    "bitbucket.org/mikespook/gearman-go/worker"
+    "github.com/mikespook/golib/signal"
+    "github.com/mikespook/gearman-go/worker"
 )
 
 func ToUpper(job *worker.Job) ([]byte, error) {

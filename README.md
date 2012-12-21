@@ -8,22 +8,24 @@ All rights reserved.
 Use of this source code is governed by a MIT license that can be found 
 in the LICENSE file.
 
-# INSTALL
+Install
+=======
 
 Install the client package:
 
-> $ go get bitbucket.org/mikespook/gearman-go/client
+> $ go get github.com/mikespook/gearman-go/client
 	
 Install the worker package:
 
-> $ go get bitbucket.org/mikespook/gearman-go/worker
+> $ go get github.com/mikespook/gearman-go/worker
 
 Install both:
 
-> $ go get bitbucket.org/mikespook/gearman-go
+> $ go get github.com/mikespook/gearman-go
 	
 
-# SAMPLE OF USAGE
+Usage
+=====
 
 ## Worker
 
@@ -53,19 +55,17 @@ Install both:
     handle, err := c.Do("ToUpper", echo, client.JOB_NORMAL)
     // ...
 
-# Contacts
+Authors
+=======
 
-Xing Xing <mikespook@gmail.com>
+Xing Xing <mikespook@gmail.com> [Blog](http://mikespook.com) [@Twitter](http://twitter.com/mikespook)
 
-[Blog](http://mikespook.com)
+Open Source - MIT Software License
+==================================
+Copyright (c) 2012 Xing Xing
 
-[@Twitter](http://twitter.com/mikespook)
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
-# History
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
- * 0.1.2    Fixed issues: timeout executing, resources leaking.
- * 0.1.1    Fixed the issue of grabbing jobs.
- * 0.1      Code refactoring; Redesign the API.
- * 0.0.1    Initial implementation, ugly code-style, slow profermance and unstable API.
-
-# TODO
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

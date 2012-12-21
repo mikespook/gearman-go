@@ -6,7 +6,7 @@
 package main
 
 import (
-    "bitbucket.org/mikespook/golib/log"
+    "github.com/mikespook/golib/log"
     "flag"
     "strings"
 )

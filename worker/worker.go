@@ -7,7 +7,7 @@ package worker
 import (
     "time"
     "bytes"
-    "bitbucket.org/mikespook/gearman-go/common"
+    "github.com/mikespook/gearman-go/common"
 )
 
 const (

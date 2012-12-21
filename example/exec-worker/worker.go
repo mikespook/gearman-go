@@ -9,11 +9,11 @@ import (
     "os"
     "flag"
     "time"
-    "bitbucket.org/mikespook/golib/log"
-    "bitbucket.org/mikespook/golib/pid"
-    "bitbucket.org/mikespook/golib/prof"
-    "bitbucket.org/mikespook/golib/signal"
-    "bitbucket.org/mikespook/gearman-go/worker"
+    "github.com/mikespook/golib/log"
+    "github.com/mikespook/golib/pid"
+    "github.com/mikespook/golib/prof"
+    "github.com/mikespook/golib/signal"
+    "github.com/mikespook/gearman-go/worker"
 )
 
 var (

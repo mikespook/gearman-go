@@ -11,8 +11,8 @@ import (
     "time"
     "bytes"
     "strconv"
-    "bitbucket.org/mikespook/golib/autoinc"
-    "bitbucket.org/mikespook/gearman-go/common"
+    "github.com/mikespook/golib/autoinc"
+    "github.com/mikespook/gearman-go/common"
 )
 
 // Job handler

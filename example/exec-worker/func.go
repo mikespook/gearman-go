@@ -6,8 +6,8 @@
 package main
 
 import (
-    "bitbucket.org/mikespook/golib/log"
-    "bitbucket.org/mikespook/gearman-go/worker"
+    "github.com/mikespook/golib/log"
+    "github.com/mikespook/gearman-go/worker"
 )
 
 func execShell(job *worker.Job) (result []byte, err error) {

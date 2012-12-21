@@ -7,7 +7,7 @@ package worker
 import (
     "io"
     "net"
-    "bitbucket.org/mikespook/gearman-go/common"
+    "github.com/mikespook/gearman-go/common"
 )
 
 // The agent of job server.

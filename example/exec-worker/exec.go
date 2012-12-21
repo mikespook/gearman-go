@@ -10,8 +10,8 @@ import (
     "bytes"
     "os/exec"
     "encoding/json"
-    "bitbucket.org/mikespook/golib/log"
-    "bitbucket.org/mikespook/gearman-go/worker"
+    "github.com/mikespook/golib/log"
+    "github.com/mikespook/gearman-go/worker"
 )
 
 type outData struct {
