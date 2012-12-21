@@ -1,5 +1,5 @@
-# Gearman API for golang
-
+Gearman-Go
+==========
 This package is a [Gearman](http://gearman.org/) API for [Golang](http://golang.org).
 It was implemented a native protocol for both worker and client API.
 
