@@ -139,12 +139,14 @@ func (a *agent) read() (data []byte, err error) {
             l := int(common.BytesToUint32([4]byte{data[start+8],
                 data[start+9], data[start+10], data[start+11]}))
             total := l + 12
-            if total == tl {
+            if total == tl { // data is what we want
                 return
-            } else {
+            } else if total < tl{ // data[:total] is what we want, data[total:] is the more 
                 a.in <- data[total:]
                 data = data[:total]
                 return
+            } else { // ops! 
+                break
             }
         } else {
             start++
