@@ -3,11 +3,6 @@ Gearman-Go
 This package is a [Gearman](http://gearman.org/) API for [Golang](http://golang.org).
 It was implemented a native protocol for both worker and client API.
 
-Copyright 2012 Xing Xing <mikespook@gmail.com>
-All rights reserved. 
-Use of this source code is governed by a MIT license that can be found 
-in the LICENSE file.
-
 Install
 =======
 
@@ -58,7 +53,7 @@ Usage
 Authors
 =======
 
-Xing Xing <mikespook@gmail.com> [Blog](http://mikespook.com) [@Twitter](http://twitter.com/mikespook)
+ * Xing Xing <mikespook@gmail.com> [Blog](http://mikespook.com) [@Twitter](http://twitter.com/mikespook)
 
 Open Source - MIT Software License
 ==================================

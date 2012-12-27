@@ -13,9 +13,9 @@ import (
 const (
     NETWORK = "tcp"
     // queue size
-    QUEUE_SIZE = 512
+    QUEUE_SIZE = 8
     // read buffer size
-    BUFFER_SIZE = 1024
+    BUFFER_SIZE = 2048
 
     // \x00REQ
     REQ     = 5391697
