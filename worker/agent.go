@@ -108,9 +108,13 @@ func (a *agent) Work() {
 
 // Internal read
 func (a *agent) read() (data []byte, err error) {
-    if len(a.in) > 0 {
+BEGIN:
+    inlen := len(a.in)
+    if inlen > 0 {
         // in queue is not empty
-        data = <-a.in
+        for i := 0; i < inlen; i ++ {
+            data = append(data, <-a.in...)
+        }
     } else {
         for {
             buf := make([]byte, common.BUFFER_SIZE)
@@ -137,7 +141,7 @@ func (a *agent) read() (data []byte, err error) {
     for i := 0; i < tl; i++ {
         if string(data[start:start+4]) == common.RES_STR {
             l := int(common.BytesToUint32([4]byte{data[start+8],
-                data[start+9], data[start+10], data[start+11]}))
+            data[start+9], data[start+10], data[start+11]}))
             total := l + 12
             if total == tl { // data is what we want
                 return
@@ -145,8 +149,8 @@ func (a *agent) read() (data []byte, err error) {
                 a.in <- data[total:]
                 data = data[:total]
                 return
-            } else { // ops! 
-                break
+            } else { // ops! It won't be possible.
+                goto BEGIN
             }
         } else {
             start++
