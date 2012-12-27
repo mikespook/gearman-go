@@ -137,6 +137,9 @@ BEGIN:
     }
     // split package
     tl := len(data)
+    if tl < 12 {
+        goto BEGIN
+    }
     start := 0
     for i := 0; i < tl; i++ {
         if string(data[start:start+4]) == common.RES_STR {
