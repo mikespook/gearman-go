@@ -137,11 +137,14 @@ BEGIN:
     }
     // split package
     tl := len(data)
-    if tl < 12 {
+    if tl < 12 { // too few data to unpack, read more
         goto BEGIN
     }
     start := 0
-    for i := 0; i < tl; i++ {
+    for i := 0; i < tl - 12; i++ {
+        if start + 12 > tl { // too few data to unpack, read more
+            goto BEGIN
+        }
         if string(data[start:start+4]) == common.RES_STR {
             l := int(common.BytesToUint32([4]byte{data[start+8],
             data[start+9], data[start+10], data[start+11]}))
@@ -155,10 +158,11 @@ BEGIN:
             } else { // ops! It won't be possible.
                 goto BEGIN
             }
-        } else {
+        } else { // flag was not found, move to next step
             start++
         }
     }
+    goto BEGIN
     return nil, common.Errorf("Invalid data: %V", data)
 }
 
