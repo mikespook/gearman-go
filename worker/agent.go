@@ -141,7 +141,7 @@ BEGIN:
         goto BEGIN
     }
     start := 0
-    for i := 0; i < tl - 12; i++ {
+    for i := 0; i < tl - 11; i++ {
         if start + 12 > tl { // too few data to unpack, read more
             goto BEGIN
         }
