@@ -16,6 +16,8 @@ const (
     QUEUE_SIZE = 8
     // read buffer size
     BUFFER_SIZE = 1024
+    // min packet length
+    PACKET_LEN = 12
 
     // \x00REQ
     REQ     = 5391697
