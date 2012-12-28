@@ -116,7 +116,7 @@ BEGIN:
             data = append(data, <-a.in...)
         }
     } else {
-        for {
+        for i := 0; i < 10; i ++ {
             buf := make([]byte, common.BUFFER_SIZE)
             var n int
             if n, err = a.conn.Read(buf); err != nil {

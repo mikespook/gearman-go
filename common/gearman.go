@@ -15,7 +15,7 @@ const (
     // queue size
     QUEUE_SIZE = 8
     // read buffer size
-    BUFFER_SIZE = 2048
+    BUFFER_SIZE = 1024
 
     // \x00REQ
     REQ     = 5391697
