@@ -142,9 +142,9 @@ func (a *agent) unpack(data []byte) ([]byte, int, bool) {
             total := l + common.PACKET_LEN
             if total == tl { // data is what we want
                 return data, common.PACKET_LEN, true
-            } else if total < tl { // data[:total] is what we want, data[total:] is the more 
+            } else if total < tl { // data[:total] is what we want, data[total:] is the more
                 a.in <- data[total:]
-                data = data[:total]
+                data = data[start:total]
                 return data, common.PACKET_LEN, true
             } else { // ops! It won't be possible.
                 return nil, total - tl, false
