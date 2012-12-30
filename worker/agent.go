@@ -5,9 +5,9 @@
 package worker
 
 import (
-    "github.com/miraclesu/gearman-go/common"
     "io"
     "net"
+    "github.com/mikespook/gearman-go/common"
 )
 
 // The agent of job server.
