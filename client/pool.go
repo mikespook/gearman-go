@@ -6,6 +6,7 @@
 package client
 
 import (
+    "fmt"
     "time"
     "errors"
     "math/rand"
@@ -15,6 +16,7 @@ import (
 const (
     PoolSize = 10
     DefaultRetry = 5
+    DefaultTimeout = 30 * time.Second
 )
 
 var (
@@ -28,10 +30,18 @@ type poolItem struct {
 }
 
 func (item *poolItem) connect(pool *Pool) (err error) {
-    item.Client, err = New(item.Addr);
-    item.ErrHandler = pool.ErrHandler
-    item.JobHandler = pool.JobHandler
-    item.StatusHandler = pool.StatusHandler
+    if item.Client, err = New(item.Addr); err != nil {
+        return
+    }
+    if pool.ErrHandler != nil {
+        item.ErrHandler = pool.ErrHandler
+    }
+    if pool.JobHandler != nil {
+        item.JobHandler = pool.JobHandler
+    }
+    if pool.StatusHandler != nil {
+        item.StatusHandler = pool.StatusHandler
+    }
     item.TimeOut = pool.TimeOut
     return
 }
@@ -85,20 +95,24 @@ func NewPool() (pool *Pool) {
         items: make(map[string]*poolItem, PoolSize),
         Retry: DefaultRetry,
         SelectionHandler: SelectWithRate,
+        TimeOut: DefaultTimeout,
     }
 }
 
 // Add a server with rate.
-func (pool *Pool) Add(addr string, rate int) {
+func (pool *Pool) Add(addr string, rate int) (err error) {
     var item *poolItem
     var ok bool
     if item, ok = pool.items[addr]; ok {
         item.Rate = rate
     } else {
         item = &poolItem{Rate: rate, Addr: addr}
-        item.connect(pool)
+        if err = item.connect(pool); err != nil {
+            return
+        }
         pool.items[addr] = item
     }
+    return
 }
 
 func (pool *Pool) Do(funcname string, data []byte,
@@ -129,7 +143,7 @@ func (pool *Pool) Status(addr, handle string) {
 // Send a something out, get the samething back.
 func (pool *Pool) Echo(data []byte) {
     for i := 0; i < pool.Retry; i ++ {
-        addr = pool.SelectionHandler(pool.items, pool.last)
+        addr := pool.SelectionHandler(pool.items, pool.last)
         item, ok := pool.items[addr]
         if ok {
             pool.last = addr
@@ -139,9 +153,13 @@ func (pool *Pool) Echo(data []byte) {
 }
 
 // Close
-func (pool *Pool) Close() (err error) {
+func (pool *Pool) Close() (err map[string]error) {
+    err = make(map[string]error)
     for _, c := range pool.items {
-        err = c.Close()
+        fmt.Printf("begin")
+        err[c.Addr] = c.Close()
+        fmt.Printf("end")
     }
+    fmt.Print("end-for")
     return
 }

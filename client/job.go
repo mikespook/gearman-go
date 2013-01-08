@@ -36,8 +36,8 @@ type Job struct {
 // Create a new job
 func newJob(magiccode, datatype uint32, data []byte) (job *Job) {
     return &Job{magicCode: magiccode,
-        DataType: datatype,
-        Data:     data}
+    DataType: datatype,
+    Data:     data}
 }
 
 // Decode a job from byte slice
@@ -51,7 +51,22 @@ func decodeJob(data []byte) (job *Job, err error) {
         return nil, common.Errorf("Invalid data: %V", data)
     }
     data = data[12:]
-    return newJob(common.RES, datatype, data), nil
+
+    var handle string
+    switch datatype {
+        case common.WORK_DATA, common.WORK_WARNING, common.WORK_STATUS,
+        common.WORK_COMPLETE, common.WORK_FAIL, common.WORK_EXCEPTION:
+        i := bytes.IndexByte(data, '\x00')
+        if i != -1 {
+            handle = string(data[:i])
+            data = data[i:]
+        }
+    }
+
+    return &Job{magicCode: common.RES,
+        DataType: datatype,
+        Data:     data,
+        Handle:   handle}, nil
 }
 
 // Encode a job to byte slice
@@ -66,14 +81,14 @@ func (job *Job) Encode() (data []byte) {
 
     for i := 0; i < tl; i ++ {
         switch {
-            case i < 4:
-                data[i] = magiccode[i]
-            case i < 8:
-                data[i] = datatype[i - 4]
-            case i < 12:
-                data[i] = datalength[i - 8]
-            default:
-                data[i] = job.Data[i - 12]
+        case i < 4:
+            data[i] = magiccode[i]
+        case i < 8:
+            data[i] = datatype[i - 4]
+        case i < 12:
+            data[i] = datalength[i - 8]
+        default:
+            data[i] = job.Data[i - 12]
         }
     }
     // Alternative
