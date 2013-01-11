@@ -190,12 +190,12 @@ func (worker *Worker) Work() {
             v.Close()
         }
     }()
-    for funcname, f := range worker.funcs {
-        worker.addFunc(funcname, f.timeout)
-    }
     worker.running = true
     for _, v := range worker.agents {
         go v.Work()
+    }
+    for funcname, f := range worker.funcs {
+        worker.addFunc(funcname, f.timeout)
     }
     ok := true
     for ok {
