@@ -34,6 +34,13 @@ type Client struct {
 
     in chan []byte
     out chan *Job
+
+    created chan string
+    echo chan []byte
+    status chan *Status
+
+    jobhandlers map[string]JobHandler
+
     conn net.Conn
     addr string
     ai *autoinc.AutoInc
@@ -46,7 +53,12 @@ type Client struct {
 //      client, err := client.New("127.0.0.1:4730")
 func New(addr string) (client *Client, err error) {
     client = &Client{
-        jobCreated: make(chan *Job),
+        created: make(chan string, common.QUEUE_SIZE),
+        echo: make(chan []byte, common.QUEUE_SIZE),
+        status: make(chan *Status, common.QUEUE_SIZE),
+
+        jobhandlers: make(map[string]JobHandler, common.QUEUE_SIZE),
+
         in: make(chan []byte, common.QUEUE_SIZE),
         out: make(chan *Job, common.QUEUE_SIZE),
         addr: addr,
@@ -67,7 +79,7 @@ func New(addr string) (client *Client, err error) {
 func (client *Client) connect() (err error) {
     client.mutex.Lock()
     defer client.mutex.Unlock()
-    client.conn, err = net.Dial(common.NETWORK, addr)
+    client.conn, err = net.Dial(common.NETWORK, client.addr)
     return
 }
 
@@ -121,7 +133,7 @@ func (client *Client) unpack(data []byte) ([]byte, int, bool) {
         }
         if string(data[start:start+4]) == common.RES_STR {
             l := int(common.BytesToUint32([4]byte{data[start+8],
-                data[start+9], data[start+10], data[start+11]}))
+            data[start+9], data[start+10], data[start+11]}))
             total := l + common.PACKET_LEN
             if total == tl { // data is what we want
                 return data, common.PACKET_LEN, true
@@ -198,8 +210,8 @@ func (client *Client) inLoop() {
         case common.ERROR:
             _, err := common.GetError(job.Data)
             client.err(err)
-        case common.WORK_DATA, common.WORK_WARNING, common.WORK_STATUS,
-        common.WORK_COMPLETE, common.WORK_FAIL, common.WORK_EXCEPTION:
+            case common.WORK_DATA, common.WORK_WARNING, common.WORK_STATUS,
+            common.WORK_COMPLETE, common.WORK_FAIL, common.WORK_EXCEPTION:
             client.handleJob(job)
         case common.ECHO_RES:
             client.handleEcho(job)
@@ -220,29 +232,43 @@ func (client *Client) err (e error) {
 
 // job handler
 func (client *Client) handleJob(job *Job) {
+    if h, ok := client.jobhandlers[job.UniqueId]; ok {
+        h(job)
+        delete(client.jobhandlers, job.UniqueId)
+    }
+}
 
+func (client *Client) handleEcho(job *Job) {
+    client.echo <- job.Data
+}
+
+func (client *Client) handleCreated(job *Job) {
+    client.created <- string(job.Data)
 }
 
 // status handler
 func (client *Client) handleStatus(job *Job) {
-        data := bytes.SplitN(job.Data, []byte{'\x00'}, 5)
-        if len(data) != 5 {
-            client.err(common.Errorf("Invalid data: %V", job.Data))
-            return
-        }
-        handle := string(data[0])
-        known := (data[1][0] == '1')
-        running := (data[2][0] == '1')
-        numerator, err := strconv.ParseUint(string(data[3][0]), 10, 0)
-        if err != nil {
-            client.err(common.Errorf("Invalid handle: %s", data[3][0]))
-            return
-        }
-        denominator, err := strconv.ParseUint(string(data[4][0]), 10, 0)
-        if err != nil {
-            client.err(common.Errorf("Invalid handle: %s", data[4][0]))
-            return
-        }
+    data := bytes.SplitN(job.Data, []byte{'\x00'}, 5)
+    if len(data) != 5 {
+        client.err(common.Errorf("Invalid data: %V", job.Data))
+        return
+    }
+    status := &Status{}
+    status.Handle = string(data[0])
+    status.Known = (data[1][0] == '1')
+    status.Running = (data[2][0] == '1')
+    var err error
+    status.Numerator, err = strconv.ParseUint(string(data[3][0]), 10, 0)
+    if err != nil {
+        client.err(common.Errorf("Invalid handle: %s", data[3][0]))
+        return
+    }
+    status.Denominator, err = strconv.ParseUint(string(data[4][0]), 10, 0)
+    if err != nil {
+        client.err(common.Errorf("Invalid handle: %s", data[4][0]))
+        return
+    }
+    client.status <- status
 }
 
 // Send the job to job server.
@@ -251,7 +277,8 @@ func (client *Client) writeJob(job *Job) {
 }
 
 // Internal do
-func (client *Client) do(funcname string, data []byte, flag uint32) (id int) {
+func (client *Client) do(funcname string, data []byte,
+flag uint32) (id string, handle string) {
     id = strconv.Itoa(int(client.ai.Id()))
     l := len(funcname) + len(id) + len(data) + 2
     rel := make([]byte, 0, l)
@@ -261,6 +288,8 @@ func (client *Client) do(funcname string, data []byte, flag uint32) (id int) {
     rel = append(rel, '\x00')                       // 1 Byte
     rel = append(rel, data...)                      // len(data)
     client.writeJob(newJob(common.REQ, flag, rel))
+    // Waiting for JOB_CREATED
+    handle = <-client.created
     return
 }
 
@@ -272,8 +301,8 @@ func (client *Client) do(funcname string, data []byte, flag uint32) (id int) {
 // flag set the job type, include running level: JOB_LOW, JOB_NORMAL, JOB_HIGH,
 // and if it is background job: JOB_BG.
 // JOB_LOW | JOB_BG means the job is running with low level in background.
-func (client *Client) Do(funcname string, data []byte, flag byte)
-(handle string, err error) {
+func (client *Client) Do(funcname string, data []byte,
+flag byte, jobhandler JobHandler) (handle string) {
     var datatype uint32
     switch flag {
     case JOB_LOW :
@@ -283,11 +312,16 @@ func (client *Client) Do(funcname string, data []byte, flag byte)
     default:
         datatype = common.SUBMIT_JOB
     }
-    client.do(funcname, data, datatype)
+    var id string
+    id, handle = client.do(funcname, data, datatype)
+    if jobhandler != nil {
+        client.jobhandlers[id] = jobhandler
+    }
+    return
 }
 
-func (client *Client) DoBg(funcname string, data []byte, flag byte)
-(handle string, err error) {
+func (client *Client) DoBg(funcname string, data []byte,
+flag byte) (handle string) {
     var datatype uint32
     switch flag {
     case JOB_LOW :
@@ -297,25 +331,34 @@ func (client *Client) DoBg(funcname string, data []byte, flag byte)
     default:
         datatype = common.SUBMIT_JOB_BG
     }
-    client.do(funcname, data, datatype)
+    _, handle = client.do(funcname, data, datatype)
+    return
 }
 
 
 // Get job status from job server.
 // !!!Not fully tested.!!!
-func (client *Client) Status(handle string, handler StatusHandler) {
+func (client *Client) Status(handle string) (status *Status) {
     client.writeJob(newJob(common.REQ, common.GET_STATUS, []byte(handle)))
+    status = <-client.status
+    return
 }
 
 // Send a something out, get the samething back.
-func (client *Client) Echo(data []byte, handler JobHandler) (echo []byte) {
+func (client *Client) Echo(data []byte) (r []byte) {
     client.writeJob(newJob(common.REQ, common.ECHO_REQ, data))
-    client.echo
+    r = <-client.echo
+    return
 }
 
 // Close
 func (client *Client) Close() (err error) {
     close(client.in)
     close(client.out)
+
+    close(client.echo)
+    close(client.created)
+    close(client.status)
+
     return client.conn.Close();
 }

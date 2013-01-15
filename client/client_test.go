@@ -15,22 +15,17 @@ func TestClientAddServer(t *testing.T) {
 }
 
 func TestClientEcho(t *testing.T) {
-    echoHandler = func(job *Job) {
-        echo := string(job.Data)
-        if echo == "Hello world" {
-            t.Log(echo)
-        } else {
-            t.Errorf("Invalid echo data: %s", job.Data)
-        }
-        return
+    if echo := string(client.Echo([]byte("Hello world"))); echo == "Hello world" {
+        t.Log(echo)
+    } else {
+        t.Errorf("Invalid echo data: %s", echo)
     }
-    client.Echo([]byte("Hello world"), echoHandler)
 }
 
 func TestClientDoBg(t *testing.T) {
-    if handle, err := client.DoBg("ToUpper", []byte("abcdef"),
-        JOB_LOW); err != nil {
-        t.Error(err)
+    if handle := client.DoBg("ToUpper", []byte("abcdef"),
+        JOB_LOW); handle == "" {
+        t.Error("Handle is empty.")
     } else {
         t.Log(handle)
     }
@@ -46,42 +41,31 @@ func TestClientDo(t *testing.T) {
         }
         return
     }
-    if handle, err := client.Do("ToUpper", []byte("abcdef"),
-        JOB_LOW, jobHandler); err != nil {
-        t.Error(err)
+    if handle := client.Do("ToUpper", []byte("abcdef"),
+        JOB_LOW, jobHandler); handle == "" {
+        t.Error("Handle is empty.")
     } else {
         t.Log(handle)
     }
 }
 
 func TestClientStatus(t *testing.T) {
-    statusHandler = func(handler string, known bool,
-        running bool, numerator uint64, denominator uint64) {
-        if known {
-            t.Errorf("The job (%s) shouldn't be known.", handler)
-        }
-        if running {
-            t.Errorf("The job (%s) shouldn't be running.", handler)
-        }
+
+    s1 := client.Status("handle not exists")
+    if s1.Known {
+        t.Errorf("The job (%s) shouldn't be known.", s1.Handle)
     }
-    client.Status("handle not exists", statusHandler)
+    if s1.Running {
+        t.Errorf("The job (%s) shouldn't be running.", s1.Handle)
+    }
 
-    if handle, err := client.Do("Delay5sec", []byte("abcdef"),
-        JOB_LOW, nil); err != nil {
-        t.Error(err)
-    } else {
-        t.Log(handle)
-
-        statusHandler = func(handler string, known bool,
-            running bool, numerator uint64, denominator uint64) {
-            if !known {
-                t.Errorf("The job (%s) shouldn be known.", handler)
-            }
-            if !running {
-                t.Errorf("The job (%s) shouldn be running.", handler)
-            }
-        }
-        client.Status(handle, statusHandler)
+    handle := client.Do("Delay5sec", []byte("abcdef"), JOB_LOW, nil);
+    s2 := client.Status(handle)
+    if !s2.Known {
+        t.Errorf("The job (%s) should be known.", s2.Handle)
+    }
+    if s2.Running {
+        t.Errorf("The job (%s) shouldn't be running.", s2.Handle)
     }
 }
 
