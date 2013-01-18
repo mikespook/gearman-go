@@ -36,13 +36,6 @@ func (item *poolItem) connect(pool *Pool) (err error) {
     if pool.ErrHandler != nil {
         item.ErrHandler = pool.ErrHandler
     }
-    if pool.JobHandler != nil {
-        item.JobHandler = pool.JobHandler
-    }
-    if pool.StatusHandler != nil {
-        item.StatusHandler = pool.StatusHandler
-    }
-    item.TimeOut = pool.TimeOut
     return
 }
 
@@ -116,13 +109,13 @@ func (pool *Pool) Add(addr string, rate int) (err error) {
 }
 
 func (pool *Pool) Do(funcname string, data []byte,
-flag byte) (addr, handle string, err error) {
+flag byte, h JobHandler) (addr, handle string, err error) {
     for i := 0; i < pool.Retry; i ++ {
         addr = pool.SelectionHandler(pool.items, pool.last)
         item, ok := pool.items[addr]
         if ok {
             pool.last = addr
-            handle, err = item.Do(funcname, data, flag)
+            handle = item.Do(funcname, data, flag, h)
             // error handling
             // mapping the handle to the server
             return
@@ -131,6 +124,25 @@ flag byte) (addr, handle string, err error) {
     err = ErrTooMany
     return
 }
+
+func (pool *Pool) DoBg(funcname string, data []byte,
+flag byte) (addr, handle string, err error) {
+    for i := 0; i < pool.Retry; i ++ {
+        addr = pool.SelectionHandler(pool.items, pool.last)
+        item, ok := pool.items[addr]
+        if ok {
+            pool.last = addr
+            handle = item.DoBg(funcname, data, flag)
+            // error handling
+            // mapping the handle to the server
+            return
+        }
+    }
+    err = ErrTooMany
+    return
+}
+
+
 
 // Get job status from job server.
 // !!!Not fully tested.!!!

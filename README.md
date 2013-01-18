@@ -38,16 +38,15 @@ Usage
     c, err := client.New("127.0.0.1:4730")
     // ...
     defer c.Close()
-    echo := []byte("Hello\x00 world")
-    c.JobHandler = func(job *client.Job) error {
-        log.Printf("%s", job.Data)
-        return nil
-    }
+    data := []byte("Hello\x00 world")
     c.ErrHandler = func(e error) {
         log.Println(e)
         panic(e)
     }
-    handle, err := c.Do("ToUpper", echo, client.JOB_NORMAL)
+    jobHandler := func(job *client.Job) {
+        log.Printf("%s", job.Data)
+    }
+    handle := c.Do("ToUpper", data, client.JOB_NORMAL, jobHandler)
     // ...
 
 Authors

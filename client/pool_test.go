@@ -45,6 +45,7 @@ func TestPoolDo(t *testing.T) {
 }
 */
 func TestPoolClose(t *testing.T) {
+    return
     if err := pool.Close(); err != nil {
         t.Error(err)
     }
