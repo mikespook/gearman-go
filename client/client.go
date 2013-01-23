@@ -178,12 +178,9 @@ func (client *Client) read() (rel []byte, err error) {
 
 // out loop
 func (client *Client) outLoop() {
-    ok := true
-    for ok {
-        if job, ok := <-client.out; ok {
-            if err := client.write(job.Encode()); err != nil {
-                client.err(err)
-            }
+    for job := range client.out {
+        if err := client.write(job.Encode()); err != nil {
+            client.err(err)
         }
     }
 }
@@ -353,7 +350,7 @@ func (client *Client) Echo(data []byte) (r []byte) {
 
 // Close
 func (client *Client) Close() (err error) {
-    close(client.in)
+//    close(client.in)
     close(client.out)
 
     close(client.echo)

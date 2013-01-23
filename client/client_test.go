@@ -11,6 +11,10 @@ func TestClientAddServer(t *testing.T) {
     var err error
     if client, err = New("127.0.0.1:4730"); err != nil {
         t.Error(err)
+        return
+    }
+    client.ErrHandler = func(e error) {
+        t.Log(e)
     }
 }
 
@@ -71,7 +75,6 @@ func TestClientStatus(t *testing.T) {
 
 
 func TestClientClose(t *testing.T) {
-    return
     if err := client.Close(); err != nil {
         t.Error(err)
     }
