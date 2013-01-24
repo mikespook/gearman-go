@@ -1,17 +1,14 @@
 package client
 
 import (
-//    "errors"
-//    "testing"
+    "testing"
 )
 
 var (
     pool = NewPool()
 )
-/*
 
 func TestPoolAdd(t *testing.T) {
-    return
     t.Log("Add servers")
     if err := pool.Add("127.0.0.1:4730", 1); err != nil {
         t.Error(err)
@@ -19,10 +16,11 @@ func TestPoolAdd(t *testing.T) {
     if err := pool.Add("127.0.0.2:4730", 1); err != nil {
         t.Error(err)
     }
-    if len(pool.items) != 2 {
-        t.Error(errors.New("2 servers expected"))
+    if len(pool.clients) != 2 {
+        t.Errorf("2 servers expected, %d got.", len(pool.clients))
     }
 }
+/*
 
 func TestPoolEcho(t *testing.T) {
     pool.JobHandler = func(job *Job) error {
@@ -36,8 +34,7 @@ func TestPoolEcho(t *testing.T) {
     }
     pool.Echo([]byte("Hello world"))
 }
-*/
-/*
+
 func TestPoolDo(t *testing.T) {
     if addr, handle, err := pool.Do("ToUpper", []byte("abcdef"), JOB_LOW|JOB_BG); err != nil {
         t.Error(err)
@@ -45,10 +42,11 @@ func TestPoolDo(t *testing.T) {
         t.Log(handle)
     }
 }
+
+*/
 func TestPoolClose(t *testing.T) {
     return
     if err := pool.Close(); err != nil {
         t.Error(err)
     }
 }
-*/

@@ -193,21 +193,21 @@ func (client *Client) inLoop() {
         if err != nil {
             if err == common.ErrConnection {
                 client.Close()
-                break
             }
             client.err(err)
-            continue
+            break
         }
         job, err := decodeJob(rel)
         if err != nil {
             client.err(err)
             continue
+            //break
         }
         switch job.DataType {
         case common.ERROR:
             _, err := common.GetError(job.Data)
             client.err(err)
-            case common.WORK_DATA, common.WORK_WARNING, common.WORK_STATUS,
+        case common.WORK_DATA, common.WORK_WARNING, common.WORK_STATUS,
             common.WORK_COMPLETE, common.WORK_FAIL, common.WORK_EXCEPTION:
             client.handleJob(job)
         case common.ECHO_RES:
@@ -216,6 +216,8 @@ func (client *Client) inLoop() {
             client.handleCreated(job)
         case common.STATUS_RES:
             client.handleStatus(job)
+        default:
+            break
         }
     }
 }
@@ -350,12 +352,11 @@ func (client *Client) Echo(data []byte) (r []byte) {
 
 // Close
 func (client *Client) Close() (err error) {
-//    close(client.in)
+    close(client.in)
     close(client.out)
 
     close(client.echo)
     close(client.created)
     close(client.status)
-
     return client.conn.Close();
 }
