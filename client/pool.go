@@ -7,12 +7,17 @@ package client
 
 import (
     "sync"
+    "errors"
     "math/rand"
     "github.com/mikespook/gearman-go/common"
 )
 
 const (
     PoolSize = 10
+)
+
+var (
+    ErrNotFound = errors.New("Server Not Found")
 )
 
 type poolClient struct {
@@ -52,7 +57,10 @@ last string) (addr string) {
 type Pool struct {
     SelectionHandler SelectionHandler
     ErrHandler common.ErrorHandler
+
     clients map[string]*poolClient
+    last string
+
     mutex sync.Mutex
 }
 
@@ -90,25 +98,45 @@ func (pool *Pool) Remove(addr string) {
 }
 
 func (pool *Pool) Do(funcname string, data []byte,
-flag byte, h JobHandler) (handle string, err error) {
+flag byte, h JobHandler) (addr, handle string) {
+    client := pool.selectServer()
+    handle = client.Do(funcname, data, flag, h)
+    addr = client.addr
     return
 }
 
 func (pool *Pool) DoBg(funcname string, data []byte,
-flag byte) (handle string, err error) {
+flag byte) (addr, handle string) {
+    client := pool.selectServer()
+    handle = client.DoBg(funcname, data, flag)
+    addr = client.addr
     return
 }
 
-
-
 // Get job status from job server.
 // !!!Not fully tested.!!!
-func (pool *Pool) Status(handle string) (status *Status) {
+func (pool *Pool) Status(addr, handle string) (status *Status, err error) {
+    if client, ok := pool.clients[addr]; ok {
+        status = client.Status(handle)
+    } else {
+        err = ErrNotFound
+    }
     return
 }
 
 // Send a something out, get the samething back.
-func (pool *Pool) Echo(data []byte) (r []byte) {
+func (pool *Pool) Echo(addr string, data []byte) (r []byte, err error) {
+    var client *poolClient
+    if addr == "" {
+        client = pool.selectServer()
+    } else {
+        var ok bool
+        if client, ok = pool.clients[addr]; !ok {
+            err = ErrNotFound
+            return
+        }
+    }
+    r = client.Echo(data)
     return
 }
 
@@ -117,6 +145,18 @@ func (pool *Pool) Close() (err map[string]error) {
     err = make(map[string]error)
     for _, c := range pool.clients {
         err[c.addr] = c.Close()
+    }
+    return
+}
+
+func (pool *Pool) selectServer() (client *poolClient) {
+    for client == nil {
+        addr := pool.SelectionHandler(pool.clients, pool.last)
+        var ok bool
+        if client, ok = pool.clients[addr]; ok {
+            pool.last = addr
+            break
+        }
     }
     return
 }

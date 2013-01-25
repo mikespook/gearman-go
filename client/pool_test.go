@@ -20,30 +20,84 @@ func TestPoolAdd(t *testing.T) {
         t.Errorf("2 servers expected, %d got.", len(pool.clients))
     }
 }
-/*
 
 func TestPoolEcho(t *testing.T) {
-    pool.JobHandler = func(job *Job) error {
-        echo := string(job.Data)
-        if echo == "Hello world" {
-            t.Log(echo)
-        } else {
-            t.Errorf("Invalid echo data: %s", job.Data)
-        }
-        return nil
+    echo, err := pool.Echo("", []byte("Hello world"))
+    if err != nil {
+        t.Error(err)
+        return
     }
-    pool.Echo([]byte("Hello world"))
+    if string(echo) != "Hello world" {
+        t.Errorf("Invalid echo data: %s", echo)
+        return
+    }
+
+    _, err = pool.Echo("not exists", []byte("Hello world"))
+    if err != ErrNotFound {
+        t.Errorf("ErrNotFound expected, got %s", err)
+    }
+}
+
+func TestPoolDoBg(t *testing.T) {
+    if addr, handle := pool.DoBg("ToUpper", []byte("abcdef"),
+        JOB_LOW); handle == "" {
+        t.Error("Handle is empty.")
+    } else {
+        t.Log(addr, handle)
+    }
 }
 
 func TestPoolDo(t *testing.T) {
-    if addr, handle, err := pool.Do("ToUpper", []byte("abcdef"), JOB_LOW|JOB_BG); err != nil {
-        t.Error(err)
+    jobHandler := func(job *Job) {
+        str := string(job.Data)
+        if str == "ABCDEF" {
+            t.Log(str)
+        } else {
+            t.Errorf("Invalid data: %s", job.Data)
+        }
+        return
+    }
+    if addr, handle := pool.Do("ToUpper", []byte("abcdef"),
+        JOB_LOW, jobHandler); handle == "" {
+        t.Error("Handle is empty.")
     } else {
-        t.Log(handle)
+        t.Log(addr, handle)
     }
 }
 
-*/
+func TestPoolStatus(t *testing.T) {
+    s1, err := pool.Status("127.0.0.1:4730", "handle not exists")
+    if err != nil {
+        t.Error(err)
+        return
+    }
+    if s1.Known {
+        t.Errorf("The job (%s) shouldn't be known.", s1.Handle)
+    }
+    if s1.Running {
+        t.Errorf("The job (%s) shouldn't be running.", s1.Handle)
+    }
+
+    addr, handle := pool.Do("Delay5sec", []byte("abcdef"), JOB_LOW, nil);
+    s2, err := pool.Status(addr, handle)
+    if err != nil {
+        t.Error(err)
+        return
+    }
+
+    if !s2.Known {
+        t.Errorf("The job (%s) should be known.", s2.Handle)
+    }
+    if s2.Running {
+        t.Errorf("The job (%s) shouldn't be running.", s2.Handle)
+    }
+
+    _, err = pool.Status("not exists", "not exists")
+    if err != ErrNotFound {
+        t.Error(err)
+    }
+}
+
 func TestPoolClose(t *testing.T) {
     return
     if err := pool.Close(); err != nil {
