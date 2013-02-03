@@ -16,6 +16,14 @@ import (
     "github.com/mikespook/gearman-go/common"
 )
 
+var (
+    ai *autoinc.AutoInc
+)
+
+func init() {
+    ai = autoinc.New(0, 1)
+}
+
 // Status handler
 // handle, known, running, numerator, denominator
 type StatusHandler func(string, bool, bool, uint64, uint64)
@@ -43,7 +51,6 @@ type Client struct {
 
     conn net.Conn
     addr string
-    ai *autoinc.AutoInc
     mutex sync.RWMutex
 }
 
@@ -62,7 +69,6 @@ func New(addr string) (client *Client, err error) {
         in: make(chan []byte, common.QUEUE_SIZE),
         out: make(chan *Job, common.QUEUE_SIZE),
         addr: addr,
-        ai: autoinc.New(0, 1),
         TimeOut: time.Second,
     }
     if err = client.connect(); err != nil {
@@ -278,7 +284,7 @@ func (client *Client) writeJob(job *Job) {
 // Internal do
 func (client *Client) do(funcname string, data []byte,
 flag uint32) (id string, handle string) {
-    id = strconv.Itoa(int(client.ai.Id()))
+    id = strconv.Itoa(int(ai.Id()))
     l := len(funcname) + len(id) + len(data) + 2
     rel := make([]byte, 0, l)
     rel = append(rel, []byte(funcname)...)          // len(funcname)
