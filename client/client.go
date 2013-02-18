@@ -283,8 +283,7 @@ func (client *Client) writeJob(job *Job) {
 
 // Internal do
 func (client *Client) do(funcname string, data []byte,
-flag uint32) (id string, handle string) {
-    id = strconv.Itoa(int(ai.Id()))
+flag uint32, id string) (handle string) {
     l := len(funcname) + len(id) + len(data) + 2
     rel := make([]byte, 0, l)
     rel = append(rel, []byte(funcname)...)          // len(funcname)
@@ -317,8 +316,8 @@ flag byte, jobhandler JobHandler) (handle string) {
     default:
         datatype = common.SUBMIT_JOB
     }
-    var id string
-    id, handle = client.do(funcname, data, datatype)
+    id := strconv.Itoa(int(ai.Id()))
+    handle = client.do(funcname, data, datatype, id)
     if jobhandler != nil {
         client.jobhandlers[id] = jobhandler
     }
@@ -336,7 +335,7 @@ flag byte) (handle string) {
     default:
         datatype = common.SUBMIT_JOB_BG
     }
-    _, handle = client.do(funcname, data, datatype)
+    handle = client.do(funcname, data, datatype, "")
     return
 }
 
