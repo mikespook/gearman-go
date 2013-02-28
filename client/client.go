@@ -12,16 +12,15 @@ import (
     "time"
     "bytes"
     "strconv"
-    "github.com/mikespook/golib/autoinc"
     "github.com/mikespook/gearman-go/common"
 )
 
 var (
-    ai *autoinc.AutoInc
+    IdGen IdGenerator
 )
 
 func init() {
-    ai = autoinc.New(0, 1)
+    IdGen = NewObjectId()
 }
 
 // Status handler
@@ -316,7 +315,7 @@ flag byte, jobhandler JobHandler) (handle string) {
     default:
         datatype = common.SUBMIT_JOB
     }
-    id := strconv.Itoa(int(ai.Id()))
+    id := IdGen.Id()
     handle = client.do(funcname, data, datatype, id)
     if jobhandler != nil {
         client.jobhandlers[id] = jobhandler
