@@ -165,7 +165,7 @@ func (worker *Worker) removeFunc(funcname string) {
 func (worker *Worker) dealJob(job *Job) {
     defer func() {
         job.Close()
-        if worker.limit != nil {
+        if worker.running && worker.limit != nil {
             worker.limit <- true
         }
     }()
@@ -185,7 +185,6 @@ func (worker *Worker) dealJob(job *Job) {
 // Main loop
 func (worker *Worker) Work() {
     defer func() {
-        worker.running = false
         for _, v := range worker.agents {
             v.Close()
         }
@@ -220,6 +219,7 @@ func (worker *Worker) handleJob(job *Job) {
 
 // Close.
 func (worker *Worker) Close() {
+    worker.running = false
     close(worker.in)
     if worker.limit != nil {
         close(worker.limit)
@@ -299,7 +299,9 @@ func (worker *Worker) exec(job *Job) (err error) {
     job.magicCode = common.REQ
     job.DataType = datatype
     job.Data = r.data
-    job.agent.WriteJob(job)
+    if worker.running {
+        job.agent.WriteJob(job)
+    }
     return
 }
 
