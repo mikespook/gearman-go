@@ -41,7 +41,7 @@ func newAgent(addr string, worker *Worker) (a *agent, err error) {
 func (a *agent) outLoop() {
     ok := true
     var job *Job
-    for ok {
+    for a.worker.running && ok {
         if job, ok = <-a.out; ok {
             if err := a.write(job.Encode()); err != nil {
                 a.worker.err(err)
@@ -92,7 +92,9 @@ func (a *agent) inLoop() {
             a.WriteJob(newJob(common.REQ, common.GRAB_JOB_UNIQ, nil))
         case common.ERROR, common.ECHO_RES, common.JOB_ASSIGN_UNIQ, common.JOB_ASSIGN:
             job.agent = a
-            a.worker.in <- job
+            if a.worker.running {
+                a.worker.in <- job
+            }
         }
     }
 }
