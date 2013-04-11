@@ -31,7 +31,7 @@ func ToUpper(job *worker.Job) ([]byte, error) {
 }
 
 func Sleep(job *worker.Job) ([]byte, error) {
-    time.Sleep(time.Second)
+    time.Sleep(time.Second * 5)
     return nil, nil
 }
 
@@ -82,6 +82,7 @@ func TestJobs(t *testing.T) {
 
     {
         handle := c.DoBg("Sleep", nil, client.JOB_NORMAL)
+        time.Sleep(time.Second)
         status := c.Status(handle)
 
         if !status.Known {
