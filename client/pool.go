@@ -7,6 +7,7 @@ package client
 
 import (
     "sync"
+    "time"
     "errors"
     "math/rand"
     "github.com/mikespook/gearman-go/common"
@@ -115,9 +116,9 @@ flag byte) (addr, handle string) {
 
 // Get job status from job server.
 // !!!Not fully tested.!!!
-func (pool *Pool) Status(addr, handle string) (status *Status, err error) {
+func (pool *Pool) Status(addr, handle string, timeout time.Duration) (status *Status, err error) {
     if client, ok := pool.clients[addr]; ok {
-        status = client.Status(handle)
+        status, err = client.Status(handle, timeout)
     } else {
         err = ErrNotFound
     }

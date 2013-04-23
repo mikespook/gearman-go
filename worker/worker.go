@@ -6,7 +6,6 @@ package worker
 
 import (
     "time"
-    "bytes"
     "github.com/mikespook/gearman-go/common"
 )
 
@@ -258,24 +257,9 @@ func (worker *Worker) exec(job *Job) (err error) {
             }
         }
     } ()
-    var limit int
-    if job.DataType == common.JOB_ASSIGN {
-        limit = 3
-    } else {
-        limit = 4
-    }
-    jobdata := bytes.SplitN(job.Data, []byte{'\x00'}, limit)
-    job.Handle = string(jobdata[0])
-    funcname := string(jobdata[1])
-    if job.DataType == common.JOB_ASSIGN {
-        job.Data = jobdata[2]
-    } else {
-        job.UniqueId = string(jobdata[2])
-        job.Data = jobdata[3]
-    }
-    f, ok := worker.funcs[funcname]
+    f, ok := worker.funcs[job.Fn]
     if !ok {
-        return common.Errorf("The function does not exist: %s", funcname)
+        return common.Errorf("The function does not exist: %s", job.Fn)
     }
     var r *result
     if f.timeout == 0 {
@@ -333,7 +317,7 @@ func execTimeout(f JobFunc, job *Job, timeout time.Duration) (r *result) {
     case r = <-rslt:
     case <-time.After(timeout):
         go job.cancel()
-        return &result{err:common.ErrExecTimeOut}
+        return &result{err:common.ErrTimeOut}
     }
     return r
 }

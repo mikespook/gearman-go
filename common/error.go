@@ -24,8 +24,8 @@ var (
     ErrFuncNotFound     = errors.New("The function was not found.")
     ErrConnection       = errors.New("Connection error.")
     ErrNoActiveAgent    = errors.New("No active agent.")
-    ErrExecTimeOut      = errors.New("Executing time out.")
-    ErrUnknown            = errors.New("Unknown error.")
+    ErrTimeOut          = errors.New("Executing time out.")
+    ErrUnknown          = errors.New("Unknown error.")
 )
 func DisablePanic() {recover()}
 

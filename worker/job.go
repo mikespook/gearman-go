@@ -6,6 +6,7 @@
 package worker
 
 import (
+    "bytes"
     "strconv"
     "github.com/mikespook/gearman-go/common"
 )
@@ -13,7 +14,7 @@ import (
 // Worker side job
 type Job struct {
     Data                []byte
-    Handle, UniqueId    string
+    Handle, UniqueId, Fn string
     agent               *agent
     magicCode, DataType uint32
     c chan bool
@@ -24,8 +25,7 @@ func newJob(magiccode, datatype uint32, data []byte) (job *Job) {
     return &Job{magicCode: magiccode,
         DataType: datatype,
         Data:     data,
-        c: make(chan bool),
-    }
+        c: make(chan bool),}
 }
 
 // Decode job from byte slice
@@ -39,7 +39,25 @@ func decodeJob(data []byte) (job *Job, err error) {
         return nil, common.Errorf("Invalid data: %V", data)
     }
     data = data[12:]
-    job = newJob(common.RES, datatype, data)
+    job = &Job{magicCode: common.RES, DataType: datatype, c: make(chan bool),}
+    switch datatype {
+        case common.JOB_ASSIGN:
+            s := bytes.SplitN(data, []byte{'\x00'}, 3)
+            if len(s) == 3 {
+                job.Handle = string(s[0])
+                job.Fn = string(s[1])
+                data = s[2]
+            }
+        case common.JOB_ASSIGN_UNIQ:
+            s := bytes.SplitN(data, []byte{'\x00'}, 4)
+            if len(s) == 4  {
+                job.Handle = string(s[0])
+                job.Fn = string(s[1])
+                job.UniqueId = string(s[2])
+                data = s[3]
+            }
+    }
+    job.Data = data
     return
 }
 

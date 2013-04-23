@@ -16,7 +16,7 @@ type objectId struct {
 }
 
 func (id *objectId) Id() string {
-    return id.String()
+    return id.Hex()
 }
 
 func NewObjectId() IdGenerator {

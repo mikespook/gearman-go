@@ -82,16 +82,12 @@ func New(addr string) (client *Client, err error) {
 
 // 
 func (client *Client) connect() (err error) {
-    client.mutex.Lock()
-    defer client.mutex.Unlock()
     client.conn, err = net.Dial(common.NETWORK, client.addr)
     return
 }
 
 // Internal write
 func (client *Client) write(buf []byte) (err error) {
-    client.mutex.RLock()
-    defer client.mutex.RUnlock()
     var n int
     for i := 0; i < len(buf); i += n {
         n, err = client.conn.Write(buf[i:])
@@ -104,8 +100,6 @@ func (client *Client) write(buf []byte) (err error) {
 
 // read length bytes from the socket
 func (client *Client) readData(length int) (data []byte, err error) {
-    client.mutex.RLock()
-    defer client.mutex.RUnlock()
     n := 0
     buf := make([]byte, common.BUFFER_SIZE)
     // read until data can be unpacked
@@ -236,9 +230,11 @@ func (client *Client) err (e error) {
 
 // job handler
 func (client *Client) handleJob(job *Job) {
-    if h, ok := client.jobhandlers[job.UniqueId]; ok {
+    client.mutex.RLock()
+    defer client.mutex.RUnlock()
+    if h, ok := client.jobhandlers[job.Handle]; ok {
         h(job)
-        delete(client.jobhandlers, job.UniqueId)
+        delete(client.jobhandlers, job.Handle)
     }
 }
 
@@ -316,9 +312,11 @@ flag byte, jobhandler JobHandler) (handle string) {
         datatype = common.SUBMIT_JOB
     }
     id := IdGen.Id()
+    client.mutex.Lock()
+    defer client.mutex.Unlock()
     handle = client.do(funcname, data, datatype, id)
     if jobhandler != nil {
-        client.jobhandlers[id] = jobhandler
+        client.jobhandlers[handle] = jobhandler
     }
     return
 }
@@ -341,9 +339,13 @@ flag byte) (handle string) {
 
 // Get job status from job server.
 // !!!Not fully tested.!!!
-func (client *Client) Status(handle string) (status *Status) {
+func (client *Client) Status(handle string, timeout time.Duration) (status *Status, err error) {
     client.writeJob(newJob(common.REQ, common.GET_STATUS, []byte(handle)))
-    status = <-client.status
+    select {
+    case status = <-client.status:
+    case <-time.NewTimer(timeout).C:
+        err = common.ErrTimeOut
+    }
     return
 }
 

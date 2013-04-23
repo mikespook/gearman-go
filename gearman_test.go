@@ -10,9 +10,7 @@ The protocol was implemented by native way.
 package gearman
 
 import (
-    "fmt"
     "time"
-    "errors"
     "testing"
     "strings"
     "github.com/mikespook/gearman-go/client"
@@ -21,7 +19,6 @@ import (
 
 const(
     STR = "The gearman-go is a pure go implemented library."
-    UPPERSTR = "THE GEARMAN-GO IS A PURE GO IMPLEMENTED LIRBRARY."
     GEARMAND = "127.0.0.1:4730"
 )
 
@@ -51,6 +48,10 @@ func TestJobs(t *testing.T) {
         t.Error(err)
         return
     }
+
+    w.ErrHandler = func(e error) {
+         t.Error(e)
+    }
     go w.Work()
 
     c, err := client.New(GEARMAND)
@@ -61,29 +62,37 @@ func TestJobs(t *testing.T) {
     defer c.Close()
 
     c.ErrHandler = func(e error) {
-        panic(e)
-    }
-
-    jobHandler := func(job *client.Job) {
-        if (string(job.Data) != UPPERSTR) {
-            panic(errors.New(fmt.Sprintf("%s expected, got %s", UPPERSTR, job.Data)))
-        }
+        t.Error(e)
     }
 
     {
+        jobHandler := func(job *client.Job) {
+            upper := strings.ToUpper(STR)
+            if (string(job.Data) != upper) {
+                t.Error("%s expected, got %s", []byte(upper), job.Data)
+            }
+        }
+
         handle := c.Do("ToUpper", []byte(STR), client.JOB_NORMAL, jobHandler)
-        status := c.Status(handle)
+        status, err := c.Status(handle, time.Second)
+        if err != nil {
+            t.Error(err)
+            return
+        }
 
         if !status.Known {
             t.Errorf("%s should be known", status.Handle)
             return
         }
     }
-
     {
         handle := c.DoBg("Sleep", nil, client.JOB_NORMAL)
         time.Sleep(time.Second)
-        status := c.Status(handle)
+        status, err := c.Status(handle, time.Second)
+        if err != nil {
+            t.Error(err)
+            return
+        }
 
         if !status.Known {
             t.Errorf("%s should be known", status.Handle)
@@ -91,7 +100,23 @@ func TestJobs(t *testing.T) {
         }
 
         if !status.Running {
-            t.Errorf("%s shouldn be running", status.Handle)
+            t.Errorf("%s should be running", status.Handle)
+        }
+    }
+    {
+        status, err := c.Status("not exists handle", time.Second)
+        if err != nil {
+            t.Error(err)
+            return
+        }
+
+        if status.Known {
+            t.Errorf("%s shouldn't be known", status.Handle)
+            return
+        }
+
+        if status.Running {
+            t.Errorf("%s shouldn't be running", status.Handle)
         }
     }
 }

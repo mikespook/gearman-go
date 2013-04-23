@@ -51,7 +51,6 @@ func decodeJob(data []byte) (job *Job, err error) {
         return nil, common.Errorf("Invalid data: %V", data)
     }
     data = data[12:]
-
     var handle string
     switch datatype {
         case common.WORK_DATA, common.WORK_WARNING, common.WORK_STATUS,
@@ -59,7 +58,7 @@ func decodeJob(data []byte) (job *Job, err error) {
         i := bytes.IndexByte(data, '\x00')
         if i != -1 {
             handle = string(data[:i])
-            data = data[i:]
+            data = data[i + 1:]
         }
     }
 
