@@ -63,7 +63,8 @@ func TestJobs(t *testing.T) {
     defer c.Close()
 
     c.ErrHandler = func(e error) {
-        t.Error(e)
+//        t.Error(e)
+        t.Log(e)
     }
 
     {

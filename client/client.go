@@ -48,6 +48,7 @@ type Client struct {
 
     jobhandlers map[string]JobHandler
 
+    isConn bool
     conn net.Conn
     addr string
     mutex sync.RWMutex
@@ -73,6 +74,7 @@ func New(addr string) (client *Client, err error) {
     if err = client.connect(); err != nil {
         return
     }
+    client.isConn = true
     go client.inLoop()
     go client.outLoop()
     return
@@ -105,6 +107,9 @@ func (client *Client) readData(length int) (data []byte, err error) {
     // read until data can be unpacked
     for i := length; i > 0 || len(data) < common.PACKET_LEN; i -= n {
         if n, err = client.conn.Read(buf); err != nil {
+            if !client.isConn {
+                return nil, common.ErrConnClosed
+            }
             if err == io.EOF && n == 0 {
                 if data == nil {
                     err = common.ErrConnection
@@ -193,7 +198,9 @@ func (client *Client) inLoop() {
             if err == common.ErrConnection {
                 client.Close()
             }
-            client.err(err)
+            if err != common.ErrConnClosed {
+               client.err(err)
+            }
             break
         }
         job, err := decodeJob(rel)
@@ -358,6 +365,7 @@ func (client *Client) Echo(data []byte) (r []byte) {
 
 // Close
 func (client *Client) Close() (err error) {
+    client.isConn = false
     close(client.in)
     close(client.out)
 
