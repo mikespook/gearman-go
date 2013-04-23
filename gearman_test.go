@@ -11,6 +11,7 @@ package gearman
 
 import (
     "time"
+    "sync"
     "testing"
     "strings"
     "github.com/mikespook/gearman-go/client"
@@ -66,23 +67,30 @@ func TestJobs(t *testing.T) {
     }
 
     {
+        var w sync.WaitGroup
         jobHandler := func(job *client.Job) {
             upper := strings.ToUpper(STR)
             if (string(job.Data) != upper) {
                 t.Error("%s expected, got %s", []byte(upper), job.Data)
             }
+            w.Done()
         }
 
+        w.Add(1)
         handle := c.Do("ToUpper", []byte(STR), client.JOB_NORMAL, jobHandler)
+        w.Wait()
         status, err := c.Status(handle, time.Second)
         if err != nil {
             t.Error(err)
             return
         }
-
-        if !status.Known {
-            t.Errorf("%s should be known", status.Handle)
+        if status.Known {
+            t.Errorf("%s shouldn't be known", status.Handle)
             return
+        }
+
+        if status.Running {
+            t.Errorf("%s shouldn't be running", status.Handle)
         }
     }
     {
