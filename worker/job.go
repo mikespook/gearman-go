@@ -112,6 +112,7 @@ func (job *Job) UpdateStatus(numerator, denominator int) {
     d := []byte(strconv.Itoa(denominator))
     result := append([]byte(job.Handle), 0)
     result = append(result, n...)
+    result = append(result, '\x00')
     result = append(result, d...)
     job.agent.WriteJob(newJob(common.REQ, common.WORK_STATUS, result))
 }
