@@ -265,14 +265,14 @@ func (client *Client) handleStatus(job *Job) {
     status.Known = (data[1][0] == '1')
     status.Running = (data[2][0] == '1')
     var err error
-    status.Numerator, err = strconv.ParseUint(string(data[3][0]), 10, 0)
+    status.Numerator, err = strconv.ParseUint(string(data[3]), 10, 0)
     if err != nil {
-        client.err(common.Errorf("Invalid handle: %s", data[3][0]))
+        client.err(common.Errorf("Invalid Integer: %s", data[3]))
         return
     }
-    status.Denominator, err = strconv.ParseUint(string(data[4][0]), 10, 0)
+    status.Denominator, err = strconv.ParseUint(string(data[4]), 10, 0)
     if err != nil {
-        client.err(common.Errorf("Invalid handle: %s", data[4][0]))
+        client.err(common.Errorf("Invalid Integer: %s", data[4]))
         return
     }
     client.status <- status
