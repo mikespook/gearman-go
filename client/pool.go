@@ -85,7 +85,6 @@ func (pool *Pool) Add(addr string, rate int) (err error) {
         var client *Client
         client, err = New(addr)
         item = &poolClient{Client: client, Rate: rate}
-        err = item.connect()
         pool.clients[addr] = item
     }
     return
@@ -126,7 +125,7 @@ func (pool *Pool) Status(addr, handle string, timeout time.Duration) (status *St
 }
 
 // Send a something out, get the samething back.
-func (pool *Pool) Echo(addr string, data []byte) (r []byte, err error) {
+func (pool *Pool) Echo(addr string, data []byte, timeout time.Duration) (r []byte, err error) {
     var client *poolClient
     if addr == "" {
         client = pool.selectServer()
@@ -137,7 +136,7 @@ func (pool *Pool) Echo(addr string, data []byte) (r []byte, err error) {
             return
         }
     }
-    r = client.Echo(data)
+    r, err = client.Echo(data, timeout)
     return
 }
 

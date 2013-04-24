@@ -24,7 +24,11 @@ func main() {
     }
     echo := []byte("Hello\x00 world")
     wg.Add(1)
-    log.Println(string(c.Echo(echo)))
+    echomsg, err := c.Echo(echo, time.Second)
+    if err != nil {
+        log.Fatalln(err)
+    }
+    log.Println(string(echomsg))
     wg.Done()
     jobHandler := func(job *client.Job) {
         log.Printf("%s", job.Data)

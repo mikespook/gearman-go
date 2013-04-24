@@ -110,7 +110,7 @@ func (job *Job) UpdateData(data []byte, iswarning bool) {
 func (job *Job) UpdateStatus(numerator, denominator int) {
     n := []byte(strconv.Itoa(numerator))
     d := []byte(strconv.Itoa(denominator))
-    result := append([]byte(job.Handle), 0)
+    result := append([]byte(job.Handle), '\x00')
     result = append(result, n...)
     result = append(result, '\x00')
     result = append(result, d...)

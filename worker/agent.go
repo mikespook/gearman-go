@@ -91,8 +91,11 @@ func (a *agent) inLoop() {
         case common.NOOP:
             a.WriteJob(newJob(common.REQ, common.GRAB_JOB_UNIQ, nil))
         case common.ERROR, common.ECHO_RES, common.JOB_ASSIGN_UNIQ, common.JOB_ASSIGN:
-            job.agent = a
             if a.worker.running {
+                if a.worker.limit != nil {
+                    a.worker.limit <- true
+                }
+                job.agent = a
                 a.worker.in <- job
             }
         }

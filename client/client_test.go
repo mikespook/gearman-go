@@ -1,6 +1,7 @@
 package client
 
 import (
+    "time"
     "testing"
 )
 
@@ -19,10 +20,14 @@ func TestClientAddServer(t *testing.T) {
 }
 
 func TestClientEcho(t *testing.T) {
-    if echo := string(client.Echo([]byte("Hello world"))); echo == "Hello world" {
-        t.Log(echo)
-    } else {
+    echo, err := client.Echo([]byte("Hello world"), time.Second)
+    if err != nil {
+        t.Error(err)
+        return
+    }
+    if string(echo) != "Hello world" {
         t.Errorf("Invalid echo data: %s", echo)
+        return
     }
 }
 
@@ -30,8 +35,6 @@ func TestClientDoBg(t *testing.T) {
     if handle := client.DoBg("ToUpper", []byte("abcdef"),
         JOB_LOW); handle == "" {
         t.Error("Handle is empty.")
-    } else {
-        t.Log(handle)
     }
 }
 
@@ -55,21 +58,33 @@ func TestClientDo(t *testing.T) {
 
 func TestClientStatus(t *testing.T) {
 
-    s1 := client.Status("handle not exists")
+    s1, err := client.Status("handle not exists", time.Second)
+    if err != nil {
+        t.Error(err)
+        return
+    }
     if s1.Known {
         t.Errorf("The job (%s) shouldn't be known.", s1.Handle)
+        return
     }
     if s1.Running {
         t.Errorf("The job (%s) shouldn't be running.", s1.Handle)
+        return
     }
 
     handle := client.Do("Delay5sec", []byte("abcdef"), JOB_LOW, nil);
-    s2 := client.Status(handle)
+    s2, err := client.Status(handle, time.Second)
+    if err != nil {
+        t.Error(err)
+        return
+    }
     if !s2.Known {
         t.Errorf("The job (%s) should be known.", s2.Handle)
+        return
     }
     if s2.Running {
         t.Errorf("The job (%s) shouldn't be running.", s2.Handle)
+        return
     }
 }
 

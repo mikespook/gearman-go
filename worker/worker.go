@@ -73,9 +73,6 @@ func New(l int) (worker *Worker) {
     }
     if l != Unlimited {
         worker.limit = make(chan bool, l)
-        for i := 0; i < l; i ++ {
-            worker.limit <- true
-        }
     }
     return
 }
@@ -165,7 +162,7 @@ func (worker *Worker) dealJob(job *Job) {
     defer func() {
         job.Close()
         if worker.running && worker.limit != nil {
-            worker.limit <- true
+            <-worker.limit
         }
     }()
     switch job.DataType {
@@ -199,9 +196,6 @@ func (worker *Worker) Work() {
     for ok {
         var job *Job
         if job, ok = <-worker.in; ok {
-            if worker.limit != nil {
-                <-worker.limit
-            }
             go worker.dealJob(job)
         }
     }

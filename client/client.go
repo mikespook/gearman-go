@@ -350,16 +350,20 @@ func (client *Client) Status(handle string, timeout time.Duration) (status *Stat
     client.writeJob(newJob(common.REQ, common.GET_STATUS, []byte(handle)))
     select {
     case status = <-client.status:
-    case <-time.NewTimer(timeout).C:
+    case <-time.After(timeout):
         err = common.ErrTimeOut
     }
     return
 }
 
 // Send a something out, get the samething back.
-func (client *Client) Echo(data []byte) (r []byte) {
+func (client *Client) Echo(data []byte, timeout time.Duration) (r []byte, err error) {
     client.writeJob(newJob(common.REQ, common.ECHO_REQ, data))
-    r = <-client.echo
+    select {
+    case r = <-client.echo:
+    case <-time.After(timeout):
+        err = common.ErrTimeOut
+    }
     return
 }
 

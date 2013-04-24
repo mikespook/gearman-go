@@ -1,6 +1,7 @@
 package client
 
 import (
+    "time"
     "testing"
 )
 
@@ -22,17 +23,17 @@ func TestPoolAdd(t *testing.T) {
 }
 
 func TestPoolEcho(t *testing.T) {
-    echo, err := pool.Echo("", []byte("Hello world"))
+    echo, err := pool.Echo("", []byte("Hello pool"), time.Second)
     if err != nil {
         t.Error(err)
         return
     }
-    if string(echo) != "Hello world" {
+    if string(echo) != "Hello pool" {
         t.Errorf("Invalid echo data: %s", echo)
         return
     }
 
-    _, err = pool.Echo("not exists", []byte("Hello world"))
+    _, err = pool.Echo("not exists", []byte("Hello pool"), time.Second)
     if err != ErrNotFound {
         t.Errorf("ErrNotFound expected, got %s", err)
     }
@@ -66,7 +67,7 @@ func TestPoolDo(t *testing.T) {
 }
 
 func TestPoolStatus(t *testing.T) {
-    s1, err := pool.Status("127.0.0.1:4730", "handle not exists")
+    s1, err := pool.Status("127.0.0.1:4730", "handle not exists", time.Second)
     if err != nil {
         t.Error(err)
         return
@@ -79,7 +80,7 @@ func TestPoolStatus(t *testing.T) {
     }
 
     addr, handle := pool.Do("Delay5sec", []byte("abcdef"), JOB_LOW, nil);
-    s2, err := pool.Status(addr, handle)
+    s2, err := pool.Status(addr, handle, time.Second)
     if err != nil {
         t.Error(err)
         return
@@ -92,7 +93,7 @@ func TestPoolStatus(t *testing.T) {
         t.Errorf("The job (%s) shouldn't be running.", s2.Handle)
     }
 
-    _, err = pool.Status("not exists", "not exists")
+    _, err = pool.Status("not exists", "not exists", time.Second)
     if err != ErrNotFound {
         t.Error(err)
     }
