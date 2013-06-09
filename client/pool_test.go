@@ -14,7 +14,7 @@ func TestPoolAdd(t *testing.T) {
     if err := pool.Add("127.0.0.1:4730", 1); err != nil {
         t.Error(err)
     }
-    if err := pool.Add("127.0.0.2:4730", 1); err != nil {
+    if err := pool.Add("127.0.0.1:4730", 1); err != nil {
         t.Error(err)
     }
     if len(pool.clients) != 2 {
