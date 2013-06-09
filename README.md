@@ -1,5 +1,8 @@
 Gearman-Go
 ==========
+
+[![Build Status](https://travis-ci.org/mikespook/gearman-go.png?branch=master)](https://travis-ci.org/mikespook/gearman-go)
+
 This package is a [Gearman](http://gearman.org/) API for [Golang](http://golang.org).
 It was implemented a native protocol for both worker and client API.
 
