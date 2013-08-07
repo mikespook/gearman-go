@@ -11,16 +11,14 @@ type IdGenerator interface {
 }
 
 // ObjectId
-type objectId struct {
-    bson.ObjectId
-}
+type objectId struct {}
 
 func (id *objectId) Id() string {
-    return id.Hex()
+    return bson.NewObjectId().Hex()
 }
 
 func NewObjectId() IdGenerator {
-    return &objectId{bson.NewObjectId()}
+    return &objectId{}
 }
 
 // AutoIncId
