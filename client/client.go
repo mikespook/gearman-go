@@ -20,7 +20,7 @@ var (
 )
 
 func init() {
-    IdGen = NewObjectId()
+	IdGen = NewAutoIncId()
 }
 
 // Status handler

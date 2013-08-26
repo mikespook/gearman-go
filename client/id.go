@@ -1,37 +1,29 @@
 package client
 
 import (
-    "strconv"
-    "labix.org/v2/mgo/bson"
-    "github.com/mikespook/golib/autoinc"
+	"strconv"
+	"sync/atomic"
+	"time"
 )
 
 type IdGenerator interface {
-    Id() string
-}
-
-// ObjectId
-type objectId struct {
-    bson.ObjectId
-}
-
-func (id *objectId) Id() string {
-    return id.Hex()
-}
-
-func NewObjectId() IdGenerator {
-    return &objectId{bson.NewObjectId()}
+	Id() string
 }
 
 // AutoIncId
 type autoincId struct {
-    *autoinc.AutoInc
+	value int64
 }
 
-func (id *autoincId) Id() string {
-    return strconv.Itoa(id.AutoInc.Id())
+func (ai *autoincId) Id() string {
+	next := atomic.AddInt64(&ai.value, 1)
+	return strconv.FormatInt(next, 10)
 }
 
 func NewAutoIncId() IdGenerator {
-    return &autoincId{autoinc.New(1, 1)}
+	// we'll consider the nano fraction of a second at startup unique
+	// and count up from there.
+	return &autoincId{
+		value: int64(time.Now().Nanosecond()) << 32,
+	}
 }
