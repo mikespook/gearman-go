@@ -11,19 +11,19 @@ import (
 
 // request
 type request struct {
-	DataType			uint32
-	Data                []byte
+	DataType uint32
+	Data     []byte
 }
 
 // Encode a Request to byte slice
 func (req *request) Encode() (data []byte) {
-	l := len(req.Data) // length of data
-	tl := l + 12 // add 12 bytes head
+	l := len(req.Data)       // length of data
+	tl := l + MIN_PACKET_LEN // add 12 bytes head
 	data = getBuffer(tl)
 	copy(data[:4], REQ_STR)
 	binary.BigEndian.PutUint32(data[4:8], req.DataType)
 	binary.BigEndian.PutUint32(data[8:12], uint32(l))
-	copy(data[12:], req.Data)
+	copy(data[MIN_PACKET_LEN:], req.Data)
 	return
 }
 

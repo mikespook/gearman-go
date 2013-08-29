@@ -1,7 +1,8 @@
 package client
 
 // Response handler
-type ResponseHandler func(*response)
+type ResponseHandler func(*Response)
+
 // Error handler
 type ErrorHandler func(error)
 

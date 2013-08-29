@@ -9,8 +9,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"syscall"
 	"strconv"
+	"syscall"
 )
 
 var (

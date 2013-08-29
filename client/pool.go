@@ -94,7 +94,7 @@ func (pool *Pool) Remove(addr string) {
 }
 
 func (pool *Pool) Do(funcname string, data []byte,
-	flag byte, h ResponseHandler) (addr string, handle []byte) {
+	flag byte, h ResponseHandler) (addr, handle string) {
 	client := pool.selectServer()
 	handle = client.Do(funcname, data, flag, h)
 	addr = client.addr
@@ -102,7 +102,7 @@ func (pool *Pool) Do(funcname string, data []byte,
 }
 
 func (pool *Pool) DoBg(funcname string, data []byte,
-	flag byte) (addr string, handle []byte) {
+	flag byte) (addr, handle string) {
 	client := pool.selectServer()
 	handle = client.DoBg(funcname, data, flag)
 	addr = client.addr
@@ -111,9 +111,9 @@ func (pool *Pool) DoBg(funcname string, data []byte,
 
 // Get job status from job server.
 // !!!Not fully tested.!!!
-func (pool *Pool) Status(addr string, handle []byte, h ResponseHandler) (err error) {
+func (pool *Pool) Status(addr, handle string, h ResponseHandler) (status *Status, err error) {
 	if client, ok := pool.clients[addr]; ok {
-		err = client.Status(handle, h)
+		status, err = client.Status(handle, h)
 	} else {
 		err = ErrNotFound
 	}
@@ -121,7 +121,7 @@ func (pool *Pool) Status(addr string, handle []byte, h ResponseHandler) (err err
 }
 
 // Send a something out, get the samething back.
-func (pool *Pool) Echo(addr string, data []byte, h ResponseHandler) (r []byte, err error) {
+func (pool *Pool) Echo(addr string, data []byte, h ResponseHandler) (echo []byte, err error) {
 	var client *poolClient
 	if addr == "" {
 		client = pool.selectServer()
@@ -132,7 +132,7 @@ func (pool *Pool) Echo(addr string, data []byte, h ResponseHandler) (r []byte, e
 			return
 		}
 	}
-	err = client.Echo(data, h)
+	echo, err = client.Echo(data)
 	return
 }
 
