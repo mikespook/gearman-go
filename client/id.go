@@ -1,35 +1,35 @@
 package client
 
 import (
-    "strconv"
-    "labix.org/v2/mgo/bson"
-    "github.com/mikespook/golib/autoinc"
+	"github.com/mikespook/golib/autoinc"
+	"labix.org/v2/mgo/bson"
+	"strconv"
 )
 
 type IdGenerator interface {
-    Id() string
+	Id() string
 }
 
 // ObjectId
-type objectId struct {}
+type objectId struct{}
 
 func (id *objectId) Id() string {
-    return bson.NewObjectId().Hex()
+	return bson.NewObjectId().Hex()
 }
 
 func NewObjectId() IdGenerator {
-    return &objectId{}
+	return &objectId{}
 }
 
 // AutoIncId
 type autoincId struct {
-    *autoinc.AutoInc
+	*autoinc.AutoInc
 }
 
 func (id *autoincId) Id() string {
-    return strconv.Itoa(id.AutoInc.Id())
+	return strconv.Itoa(id.AutoInc.Id())
 }
 
 func NewAutoIncId() IdGenerator {
-    return &autoincId{autoinc.New(1, 1)}
+	return &autoincId{autoinc.New(1, 1)}
 }
