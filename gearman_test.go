@@ -41,6 +41,7 @@ func TestJobs(t *testing.T) {
         return
     }
     defer w.Close()
+	t.Log("Servers added...")
     if err := w.AddFunc("ToUpper", ToUpper, 0); err != nil {
         t.Error(err)
         return
@@ -49,38 +50,42 @@ func TestJobs(t *testing.T) {
         t.Error(err)
         return
     }
-
+	t.Log("Functions added...")
     w.ErrHandler = func(e error) {
          t.Error(e)
     }
     go w.Work()
+	t.Log("Worker is running...")
 
-    c, err := client.New(GEARMAND)
+	c, err := client.New("tcp4", GEARMAND)
     if err != nil {
         t.Error(err)
         return
     }
     defer c.Close()
 
-    c.ErrHandler = func(e error) {
-//        t.Error(e)
+    c.ErrorHandler = func(e error) {
         t.Log(e)
     }
 
     {
         var w sync.WaitGroup
-        jobHandler := func(job *client.Job) {
+        jobHandler := func(job *client.Response) {
             upper := strings.ToUpper(STR)
             if (string(job.Data) != upper) {
-                t.Error("%s expected, got %s", []byte(upper), job.Data)
+                t.Errorf("%s expected, got %s", upper, job.Data)
             }
             w.Done()
         }
 
         w.Add(1)
-        handle := c.Do("ToUpper", []byte(STR), client.JOB_NORMAL, jobHandler)
+        handle, err := c.Do("ToUpper", []byte(STR), client.JOB_NORMAL, jobHandler)
+		if err != nil {
+			t.Error(err)
+			return
+		}
         w.Wait()
-        status, err := c.Status(handle, time.Second)
+        status, err := c.Status(handle)
         if err != nil {
             t.Error(err)
             return
@@ -95,9 +100,13 @@ func TestJobs(t *testing.T) {
         }
     }
     {
-        handle := c.DoBg("Sleep", nil, client.JOB_NORMAL)
+        handle, err := c.DoBg("Sleep", nil, client.JOB_NORMAL)
+		if err != nil {
+			t.Error(err)
+			return
+		}
         time.Sleep(time.Second)
-        status, err := c.Status(handle, time.Second)
+        status, err := c.Status(handle)
         if err != nil {
             t.Error(err)
             return
@@ -113,7 +122,7 @@ func TestJobs(t *testing.T) {
         }
     }
     {
-        status, err := c.Status("not exists handle", time.Second)
+        status, err := c.Status("not exists handle")
         if err != nil {
             t.Error(err)
             return

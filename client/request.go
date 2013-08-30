@@ -33,7 +33,7 @@ func getRequest() (req *request) {
 	return
 }
 
-func getJob(funcname, id string, data []byte) (req *request) {
+func getJob(id string, funcname, data []byte) (req *request) {
 	req = getRequest()
 	a := len(funcname)
 	b := len(id)

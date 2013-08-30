@@ -1,7 +1,7 @@
 package client
 
 type Status struct {
-	Handle                 []byte
+	Handle                 string
 	Known, Running         bool
 	Numerator, Denominator uint64
 }

@@ -94,26 +94,26 @@ func (pool *Pool) Remove(addr string) {
 }
 
 func (pool *Pool) Do(funcname string, data []byte,
-	flag byte, h ResponseHandler) (addr, handle string) {
+	flag byte, h ResponseHandler) (addr, handle string, err error) {
 	client := pool.selectServer()
-	handle = client.Do(funcname, data, flag, h)
+	handle, err = client.Do(funcname, data, flag, h)
 	addr = client.addr
 	return
 }
 
 func (pool *Pool) DoBg(funcname string, data []byte,
-	flag byte) (addr, handle string) {
+	flag byte) (addr, handle string, err error) {
 	client := pool.selectServer()
-	handle = client.DoBg(funcname, data, flag)
+	handle, err = client.DoBg(funcname, data, flag)
 	addr = client.addr
 	return
 }
 
 // Get job status from job server.
 // !!!Not fully tested.!!!
-func (pool *Pool) Status(addr, handle string, h ResponseHandler) (status *Status, err error) {
+func (pool *Pool) Status(addr, handle string) (status *Status, err error) {
 	if client, ok := pool.clients[addr]; ok {
-		status, err = client.Status(handle, h)
+		status, err = client.Status(handle)
 	} else {
 		err = ErrNotFound
 	}
@@ -121,7 +121,7 @@ func (pool *Pool) Status(addr, handle string, h ResponseHandler) (status *Status
 }
 
 // Send a something out, get the samething back.
-func (pool *Pool) Echo(addr string, data []byte, h ResponseHandler) (echo []byte, err error) {
+func (pool *Pool) Echo(addr string, data []byte) (echo []byte, err error) {
 	var client *poolClient
 	if addr == "" {
 		client = pool.selectServer()

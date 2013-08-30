@@ -6,11 +6,9 @@
 package client
 
 import (
+	"fmt"
 	"bytes"
 	"errors"
-	"fmt"
-	"strconv"
-	"syscall"
 )
 
 var (
@@ -33,17 +31,12 @@ var (
 func DisablePanic() { recover() }
 
 // Extract the error message
-func GetError(data []byte) (eno syscall.Errno, err error) {
+func GetError(data []byte) (err error) {
 	rel := bytes.SplitN(data, []byte{'\x00'}, 2)
 	if len(rel) != 2 {
 		err = fmt.Errorf("Not a error data: %V", data)
 		return
 	}
-	var n uint64
-	if n, err = strconv.ParseUint(string(rel[0]), 10, 0); err != nil {
-		return
-	}
-	eno = syscall.Errno(n)
-	err = errors.New(string(rel[1]))
+	err = errors.New(fmt.Sprintf("%s: %s", rel[0], rel[1]))
 	return
 }

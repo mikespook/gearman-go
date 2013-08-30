@@ -6,10 +6,10 @@
 package client
 
 import (
-	"github.com/mikespook/golib/idgen"
 	"io"
 	"net"
 	"sync"
+	"github.com/mikespook/golib/idgen"
 )
 
 /*
@@ -21,15 +21,15 @@ handle := c.Do("foobar", []byte("data here"), JOB_LOW | JOB_BG)
 
 */
 type Client struct {
-	net, addr      string
-	respHandler    map[string]ResponseHandler
-	innerHandler   map[string]ResponseHandler
-	in             chan []byte
-	isConn         bool
-	conn           net.Conn
-	mutex          sync.RWMutex
-	ErrorHandler   ErrorHandler
+	net, addr, lastcall    string
+	respHandler  map[string]ResponseHandler
+	innerHandler map[string]ResponseHandler
+	in           chan []byte
+	isConn       bool
+	conn         net.Conn
+	mutex        sync.RWMutex
 
+	ErrorHandler ErrorHandler
 	IdGen idgen.IdGen
 }
 
@@ -39,12 +39,12 @@ type Client struct {
 //      client, err := client.New("127.0.0.1:4730")
 func New(net, addr string) (client *Client, err error) {
 	client = &Client{
-		net:         net,
-		addr:        addr,
-		respHandler: make(map[string]ResponseHandler, QUEUE_SIZE),
+		net:          net,
+		addr:         addr,
+		respHandler:  make(map[string]ResponseHandler, QUEUE_SIZE),
 		innerHandler: make(map[string]ResponseHandler, QUEUE_SIZE),
-		in:          make(chan []byte, QUEUE_SIZE),
-		IdGen:       idgen.NewObjectId(),
+		in:           make(chan []byte, QUEUE_SIZE),
+		IdGen:        idgen.NewObjectId(),
 	}
 	if err = client.connect(); err != nil {
 		return
@@ -126,10 +126,10 @@ func (client *Client) processLoop() {
 	var err error
 	var data, leftdata []byte
 	for data = range client.in {
-		l = len(data)
 		if len(leftdata) > 0 { // some data left for processing
 			data = append(leftdata, data...)
 		}
+		l = len(data)
 		if l < MIN_PACKET_LEN { // not enough data
 			leftdata = data
 			continue
@@ -138,13 +138,21 @@ func (client *Client) processLoop() {
 			client.err(err)
 			continue
 		}
+		leftdata = nil
 		switch resp.DataType {
+		case ERROR:
+			if client.lastcall != "" {
+				client.handleInner(client.lastcall, resp)
+				client.lastcall = ""
+			} else {
+				client.err(GetError(resp.Data))
+			}
 		case STATUS_RES:
-			client.handleInner("status-" + resp.Handle, resp)
+			client.handleInner("s"+resp.Handle, resp)
 		case JOB_CREATED:
-			client.handleInner("created", resp)
+			client.handleInner("c", resp)
 		case ECHO_RES:
-			client.handleInner("echo", resp)
+			client.handleInner("e", resp)
 		case WORK_DATA, WORK_WARNING, WORK_STATUS, WORK_COMPLETE,
 			WORK_FAIL, WORK_EXCEPTION:
 			client.handleResponse(resp.Handle, resp)
@@ -182,16 +190,22 @@ func (client *Client) handleInner(key string, resp *Response) {
 
 // Internal do
 func (client *Client) do(funcname string, data []byte,
-	flag uint32) (handle string) {
+	flag uint32) (handle string, err error) {
 	id := client.IdGen.Id().(string)
-	req := getJob(funcname, id, data)
+	req := getJob(id, []byte(funcname), data)
+	req.DataType = flag
 	client.write(req)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	client.mutex.RLock()
-	client.innerHandler["created"] = ResponseHandler(func(resp *Response) {
+	client.lastcall = "c"
+	client.innerHandler["c"] = ResponseHandler(func(resp *Response) {
 		defer wg.Done()
 		defer client.mutex.RUnlock()
+		if resp.DataType == ERROR {
+			err = GetError(resp.Data)
+			return
+		}
 		handle = resp.Handle
 	})
 	wg.Wait()
@@ -205,7 +219,7 @@ func (client *Client) do(funcname string, data []byte,
 // data is encoding to byte array.
 // flag set the job type, include running level: JOB_LOW, JOB_NORMAL, JOB_HIGH
 func (client *Client) Do(funcname string, data []byte,
-	flag byte, h ResponseHandler) (handle string) {
+	flag byte, h ResponseHandler) (handle string, err error) {
 	var datatype uint32
 	switch flag {
 	case JOB_LOW:
@@ -215,7 +229,7 @@ func (client *Client) Do(funcname string, data []byte,
 	default:
 		datatype = SUBMIT_JOB
 	}
-	handle = client.do(funcname, data, datatype)
+	handle, err = client.do(funcname, data, datatype)
 	client.mutex.Lock()
 	defer client.mutex.Unlock()
 	if h != nil {
@@ -229,7 +243,7 @@ func (client *Client) Do(funcname string, data []byte,
 // data is encoding to byte array.
 // flag set the job type, include running level: JOB_LOW, JOB_NORMAL, JOB_HIGH
 func (client *Client) DoBg(funcname string, data []byte,
-	flag byte) (handle string) {
+	flag byte) (handle string, err error) {
 	var datatype uint32
 	switch flag {
 	case JOB_LOW:
@@ -239,13 +253,13 @@ func (client *Client) DoBg(funcname string, data []byte,
 	default:
 		datatype = SUBMIT_JOB_BG
 	}
-	handle = client.do(funcname, data, datatype)
+	handle, err = client.do(funcname, data, datatype)
 	return
 }
 
 // Get job status from job server.
 // !!!Not fully tested.!!!
-func (client *Client) Status(handle string, h ResponseHandler) (status *Status, err error) {
+func (client *Client) Status(handle string) (status *Status, err error) {
 	req := getRequest()
 	req.DataType = GET_STATUS
 	req.Data = []byte(handle)
@@ -253,7 +267,8 @@ func (client *Client) Status(handle string, h ResponseHandler) (status *Status, 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	client.mutex.Lock()
-	client.innerHandler["status-" + handle] = ResponseHandler(func(resp *Response) {
+	client.lastcall = "s" + handle
+	client.innerHandler["s" + handle] = ResponseHandler(func(resp *Response) {
 		defer wg.Done()
 		defer client.mutex.Unlock()
 		var err error
@@ -275,7 +290,8 @@ func (client *Client) Echo(data []byte) (echo []byte, err error) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	client.mutex.Lock()
-	client.innerHandler["echo"] = ResponseHandler(func(resp *Response) {
+	client.lastcall = "e"
+	client.innerHandler["e"] = ResponseHandler(func(resp *Response) {
 		defer wg.Done()
 		defer client.mutex.Unlock()
 		echo = resp.Data

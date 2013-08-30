@@ -6,17 +6,17 @@
 package client
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
+	"bytes"
 	"strconv"
+	"encoding/binary"
 )
 
 // response
 type Response struct {
 	DataType    uint32
-	Data        []byte
-	UID, Handle string
+	Data, UID      []byte
+	Handle string
 }
 
 // Extract the Response's result.
@@ -82,9 +82,9 @@ func decodeResponse(data []byte) (resp *Response, l int, err error) {
 	resp = getResponse()
 	resp.DataType = binary.BigEndian.Uint32(data[4:8])
 	switch resp.DataType {
-	case ECHO_RES:
-		resp.Data = dt
-	case WORK_DATA, WORK_WARNING, WORK_STATUS,
+	case JOB_CREATED:
+		resp.Handle = string(dt)
+	case STATUS_RES, WORK_DATA, WORK_WARNING, WORK_STATUS,
 		WORK_COMPLETE, WORK_FAIL, WORK_EXCEPTION:
 		s := bytes.SplitN(dt, []byte{'\x00'}, 2)
 		if len(s) >= 2 {
@@ -94,8 +94,12 @@ func decodeResponse(data []byte) (resp *Response, l int, err error) {
 			err = fmt.Errorf("Invalid data: %V", data)
 			return
 		}
+	case ECHO_RES:
+		fallthrough
+	default:
+		resp.Data = dt
 	}
-	l = len(resp.Data) + MIN_PACKET_LEN
+	l = dl + MIN_PACKET_LEN
 	return
 }
 
@@ -109,23 +113,23 @@ func (resp *Response) IsStatus() bool {
 
 // status handler
 func (resp *Response) Status() (status *Status, err error) {
-	data := bytes.SplitN(resp.Data, []byte{'\x00'}, 5)
-	if len(data) != 5 {
+	data := bytes.SplitN(resp.Data, []byte{'\x00'}, 4)
+	if len(data) != 4 {
 		err = fmt.Errorf("Invalid data: %V", resp.Data)
 		return
 	}
 	status = &Status{}
-	status.Handle = data[0]
-	status.Known = (data[1][0] == '1')
-	status.Running = (data[2][0] == '1')
-	status.Numerator, err = strconv.ParseUint(string(data[3]), 10, 0)
+	status.Handle = resp.Handle
+	status.Known = (data[0][0] == '1')
+	status.Running = (data[1][0] == '1')
+	status.Numerator, err = strconv.ParseUint(string(data[2]), 10, 0)
 	if err != nil {
-		err = fmt.Errorf("Invalid Integer: %s", data[3])
+		err = fmt.Errorf("Invalid Integer: %s", data[2])
 		return
 	}
-	status.Denominator, err = strconv.ParseUint(string(data[4]), 10, 0)
+	status.Denominator, err = strconv.ParseUint(string(data[3]), 10, 0)
 	if err != nil {
-		err = fmt.Errorf("Invalid Integer: %s", data[4])
+		err = fmt.Errorf("Invalid Integer: %s", data[3])
 		return
 	}
 	return

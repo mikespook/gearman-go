@@ -1,15 +1,14 @@
 package client
 
 import (
-	"fmt"
 	"testing"
 )
 
-var client *Client
+const (
+	TestStr = "Hello world"
+)
 
-func printHandle(resp *Response) {
-	fmt.Printf("%V", resp)
-}
+var client *Client
 
 func TestClientAddServer(t *testing.T) {
 	t.Log("Add local server 127.0.0.1:4730")
@@ -24,9 +23,13 @@ func TestClientAddServer(t *testing.T) {
 }
 
 func TestClientEcho(t *testing.T) {
-	err := client.Echo([]byte("Hello world"), printHandle)
+	echo, err := client.Echo([]byte(TestStr))
 	if err != nil {
 		t.Error(err)
+		return
+	}
+	if string(echo) != TestStr {
+		t.Errorf("Echo error, %s expected, %s got", TestStr, echo)
 		return
 	}
 }
@@ -35,6 +38,8 @@ func TestClientDoBg(t *testing.T) {
 	if handle := client.DoBg("ToUpper", []byte("abcdef"),
 		JOB_LOW); handle == "" {
 		t.Error("Handle is empty.")
+	} else {
+		t.Log(handle)
 	}
 }
 
@@ -57,38 +62,34 @@ func TestClientDo(t *testing.T) {
 }
 
 func TestClientStatus(t *testing.T) {
-
-	err := client.Status("handle not exists", printHandle)
+	status, err := client.Status("handle not exists")
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	/*
-		if s1.Known {
-			t.Errorf("The job (%s) shouldn't be known.", s1.Handle)
-			return
-		}
-		if s1.Running {
-			t.Errorf("The job (%s) shouldn't be running.", s1.Handle)
-			return
-		}*/
+	if status.Known {
+		t.Errorf("The job (%s) shouldn't be known.", status.Handle)
+		return
+	}
+	if status.Running {
+		t.Errorf("The job (%s) shouldn't be running.", status.Handle)
+		return
+	}
 
 	handle := client.Do("Delay5sec", []byte("abcdef"), JOB_LOW, nil)
-	err = client.Status(handle, printHandle)
-	/*
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		if !s2.Known {
-			t.Errorf("The job (%s) should be known.", s2.Handle)
-			return
-		}
-		if s2.Running {
-			t.Errorf("The job (%s) shouldn't be running.", s2.Handle)
-			return
-		}
-	*/
+	status, err = client.Status(handle)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if !status.Known {
+		t.Errorf("The job (%s) should be known.", status.Handle)
+		return
+	}
+	if status.Running {
+		t.Errorf("The job (%s) shouldn't be running.", status.Handle)
+		return
+	}
 }
 
 func TestClientClose(t *testing.T) {

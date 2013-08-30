@@ -38,7 +38,7 @@ Usage
 
 ## Client
 
-    c, err := client.New("127.0.0.1:4730")
+    c, err := client.New("tcp4", "127.0.0.1:4730")
     // ...
     defer c.Close()
     data := []byte("Hello\x00 world")
@@ -51,6 +51,17 @@ Usage
     }
     handle := c.Do("ToUpper", data, client.JOB_NORMAL, jobHandler)
     // ...
+
+Branches
+========
+
+Version 0.x means: _It is far far away from stable._
+
+__Use at your own risk!__
+
+ * 0.1-testing Old API and some known issues, eg. [issue-14](https://github.com/mikespook/gearman-go/issues/14)
+ * 0.2-dev Refactoring a lot of things
+ * master current usable version
 
 Authors
 =======

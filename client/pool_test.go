@@ -13,7 +13,7 @@ func TestPoolAdd(t *testing.T) {
 	if err := pool.Add("tcp4", "127.0.0.1:4730", 1); err != nil {
 		t.Error(err)
 	}
-	if err := pool.Add("tcp4", "127.0.0.1:4730", 1); err != nil {
+	if err := pool.Add("tcp4", "127.0.1.1:4730", 1); err != nil {
 		t.Error(err)
 	}
 	if len(pool.clients) != 2 {
@@ -22,17 +22,17 @@ func TestPoolAdd(t *testing.T) {
 }
 
 func TestPoolEcho(t *testing.T) {
-	echo, err := pool.Echo("", []byte("Hello pool"), printHandle)
+	echo, err := pool.Echo("", []byte(TestStr))
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	if string(echo) != "Hello pool" {
+	if string(echo) != TestStr {
 		t.Errorf("Invalid echo data: %s", echo)
 		return
 	}
 
-	_, err = pool.Echo("not exists", []byte("Hello pool"), printHandle)
+	_, err = pool.Echo("not exists", []byte(TestStr))
 	if err != ErrNotFound {
 		t.Errorf("ErrNotFound expected, got %s", err)
 	}
@@ -66,36 +66,34 @@ func TestPoolDo(t *testing.T) {
 }
 
 func TestPoolStatus(t *testing.T) {
-	err := pool.Status("127.0.0.1:4730", "handle not exists", printHandle)
+	status, err := pool.Status("127.0.0.1:4730", "handle not exists")
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	/*
-		if s1.Known {
-			t.Errorf("The job (%s) shouldn't be known.", s1.Handle)
-		}
-		if s1.Running {
-			t.Errorf("The job (%s) shouldn't be running.", s1.Handle)
-		}
-	*/
+	if status.Known {
+		t.Errorf("The job (%s) shouldn't be known.", status.Handle)
+	}
+	if status.Running {
+		t.Errorf("The job (%s) shouldn't be running.", status.Handle)
+	}
 	addr, handle := pool.Do("Delay5sec", []byte("abcdef"), JOB_LOW, nil)
-	err = pool.Status(addr, handle, printHandle)
+	status, err = pool.Status(addr, handle)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	/*
-		if !s2.Known {
-			t.Errorf("The job (%s) should be known.", s2.Handle)
-		}
-		if s2.Running {
-			t.Errorf("The job (%s) shouldn't be running.", s2.Handle)
-		}
-	*/
-	err = pool.Status("not exists", "not exists", printHandle)
+
+	if !status.Known {
+		t.Errorf("The job (%s) should be known.", status.Handle)
+	}
+	if status.Running {
+		t.Errorf("The job (%s) shouldn't be running.", status.Handle)
+	}
+	status, err = pool.Status("not exists", "not exists")
 	if err != ErrNotFound {
 		t.Error(err)
+		return
 	}
 }
 
