@@ -10,7 +10,7 @@ func init() {
 
 func TestWorkerAddServer(t *testing.T) {
 	t.Log("Add local server 127.0.0.1:4730.")
-	if err := worker.AddServer("127.0.0.1:4730"); err != nil {
+	if err := worker.AddServer("tcp4", "127.0.0.1:4730"); err != nil {
 		t.Error(err)
 	}
 
@@ -20,7 +20,7 @@ func TestWorkerAddServer(t *testing.T) {
 	}
 }
 
-func foobar(job *Job) ([]byte, error) {
+func foobar(job Job) ([]byte, error) {
 	return nil, nil
 }
 
@@ -41,4 +41,12 @@ func TestWorkerRemoveFunc(t *testing.T) {
 	if err := worker.RemoveFunc("foobar"); err != nil {
 		t.Error(err)
 	}
+}
+
+func TestWork(t *testing.T) {
+	go worker.Work()
+}
+
+func TestWorkerClose(t *testing.T) {
+	worker.Close()
 }

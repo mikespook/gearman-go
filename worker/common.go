@@ -54,3 +54,9 @@ const (
 	SUBMIT_JOB_LOW     = 33
 	SUBMIT_JOB_LOW_BG  = 34
 )
+
+func getBuffer(l int) (buf []byte) {
+	// TODO add byte buffer pool
+	buf = make([]byte, l)
+	return
+}

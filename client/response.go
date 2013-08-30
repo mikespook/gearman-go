@@ -106,14 +106,6 @@ func decodeResponse(data []byte) (resp *Response, l int, err error) {
 	return
 }
 
-func (resp *Response) IsEcho() bool {
-	return resp.DataType == ECHO_RES
-}
-
-func (resp *Response) IsStatus() bool {
-	return resp.DataType == STATUS_RES
-}
-
 // status handler
 func (resp *Response) Status() (status *Status, err error) {
 	data := bytes.SplitN(resp.Data, []byte{'\x00'}, 4)

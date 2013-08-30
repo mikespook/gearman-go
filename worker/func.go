@@ -5,13 +5,27 @@ import (
 	"runtime"
 )
 
+// Job handler
+type JobHandler func(Job) error
+
+type JobFunc func(Job) ([]byte, error)
+
+// The definition of the callback function.
+type jobFunc struct {
+	f       JobFunc
+	timeout uint32
+}
+
+// Map for added function.
+type JobFuncs map[string]*jobFunc
+
 type systemInfo struct {
 	GOOS, GOARCH, GOROOT, Version string
 	NumCPU, NumGoroutine          int
 	NumCgoCall                    int64
 }
 
-func SysInfo(job *Job) ([]byte, error) {
+func SysInfo(job Job) ([]byte, error) {
 	return json.Marshal(&systemInfo{
 		GOOS:         runtime.GOOS,
 		GOARCH:       runtime.GOARCH,
@@ -25,7 +39,7 @@ func SysInfo(job *Job) ([]byte, error) {
 
 var memState runtime.MemStats
 
-func MemInfo(job *Job) ([]byte, error) {
+func MemInfo(job Job) ([]byte, error) {
 	runtime.ReadMemStats(&memState)
 	return json.Marshal(&memState)
 }

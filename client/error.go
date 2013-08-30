@@ -28,8 +28,6 @@ var (
 	ErrConnClosed    = errors.New("Connection closed")
 )
 
-func DisablePanic() { recover() }
-
 // Extract the error message
 func GetError(data []byte) (err error) {
 	rel := bytes.SplitN(data, []byte{'\x00'}, 2)

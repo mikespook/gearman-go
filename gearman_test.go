@@ -23,19 +23,20 @@ const (
 	GEARMAND = "127.0.0.1:4730"
 )
 
-func ToUpper(job *worker.Job) ([]byte, error) {
-	data := []byte(strings.ToUpper(string(job.Data)))
+func ToUpper(job worker.Job) ([]byte, error) {
+	data := job.Data()
+	data = []byte(strings.ToUpper(string(data)))
 	return data, nil
 }
 
-func Sleep(job *worker.Job) ([]byte, error) {
+func Sleep(job worker.Job) ([]byte, error) {
 	time.Sleep(time.Second * 5)
 	return nil, nil
 }
 
 func TestJobs(t *testing.T) {
 	w := worker.New(worker.Unlimited)
-	if err := w.AddServer(GEARMAND); err != nil {
+	if err := w.AddServer("tcp4", GEARMAND); err != nil {
 		t.Error(err)
 		return
 	}
@@ -50,7 +51,7 @@ func TestJobs(t *testing.T) {
 		return
 	}
 	t.Log("Functions added...")
-	w.ErrHandler = func(e error) {
+	w.ErrorHandler = func(e error) {
 		t.Error(e)
 	}
 	go w.Work()

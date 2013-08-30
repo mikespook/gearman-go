@@ -5,7 +5,10 @@
 package worker
 
 import (
+	"fmt"
 	"time"
+	"sync"
+	"encoding/binary"
 )
 
 const (
@@ -14,24 +17,6 @@ const (
 
 	Immediately = 0
 )
-
-var (
-	ErrConnection = common.ErrConnection
-)
-
-// Job handler
-type JobHandler func(*Job) error
-
-type JobFunc func(*Job) ([]byte, error)
-
-// The definition of the callback function.
-type jobFunc struct {
-	f       JobFunc
-	timeout uint32
-}
-
-// Map for added function.
-type JobFuncs map[string]*jobFunc
 
 /*
 Worker side api for gearman
@@ -52,24 +37,25 @@ func foobar(job *Job) (data []byte, err os.Error) {
 }
 */
 type Worker struct {
-	agents  []*agent
+	agents  map[string]*agent
 	funcs   JobFuncs
-	in      chan *Job
+	in      chan *Response
 	running bool
 	limit   chan bool
 
 	Id string
 	// assign a ErrFunc to handle errors
-	ErrHandler common.ErrorHandler
+	ErrorHandler ErrorHandler
 	JobHandler JobHandler
+	mutex sync.Mutex
 }
 
 // Get a new worker
 func New(l int) (worker *Worker) {
 	worker = &Worker{
-		agents: make([]*agent, 0),
+		agents: make(map[string]*agent, QUEUE_SIZE),
 		funcs:  make(JobFuncs),
-		in:     make(chan *Job, common.QUEUE_SIZE),
+		in:     make(chan *Response, QUEUE_SIZE),
 	}
 	if l != Unlimited {
 		worker.limit = make(chan bool, l)
@@ -79,29 +65,29 @@ func New(l int) (worker *Worker) {
 
 //
 func (worker *Worker) err(e error) {
-	if worker.ErrHandler != nil {
-		worker.ErrHandler(e)
+	if worker.ErrorHandler != nil {
+		worker.ErrorHandler(e)
 	}
 }
 
 // Add a server. The addr should be 'host:port' format.
 // The connection is established at this time.
-func (worker *Worker) AddServer(addr string) (err error) {
+func (worker *Worker) AddServer(net, addr string) (err error) {
 	// Create a new job server's client as a agent of server
-	server, err := newAgent(addr, worker)
+	a, err := newAgent(net, addr, worker)
 	if err != nil {
 		return err
 	}
-	worker.agents = append(worker.agents, server)
+	worker.agents[net + addr] = a
 	return
 }
 
 // Write a job to job server.
 // Here, the job's mean is not the oraginal mean.
 // Just looks like a network package for job's result or tell job server, there was a fail.
-func (worker *Worker) broadcast(job *Job) {
+func (worker *Worker) broadcast(req *request) {
 	for _, v := range worker.agents {
-		v.WriteJob(job)
+		v.write(req)
 	}
 }
 
@@ -110,11 +96,12 @@ func (worker *Worker) broadcast(job *Job) {
 // The API will tell every connected job server that 'I can do this'
 func (worker *Worker) AddFunc(funcname string,
 	f JobFunc, timeout uint32) (err error) {
+	worker.mutex.Lock()
+	defer worker.mutex.Unlock()
 	if _, ok := worker.funcs[funcname]; ok {
-		return common.Errorf("The function already exists: %s", funcname)
+		return fmt.Errorf("The function already exists: %s", funcname)
 	}
 	worker.funcs[funcname] = &jobFunc{f: f, timeout: timeout}
-
 	if worker.running {
 		worker.addFunc(funcname, timeout)
 	}
@@ -123,27 +110,27 @@ func (worker *Worker) AddFunc(funcname string,
 
 // inner add function
 func (worker *Worker) addFunc(funcname string, timeout uint32) {
-	var datatype uint32
-	var data []byte
+	req := getRequest()
 	if timeout == 0 {
-		datatype = common.CAN_DO
-		data = []byte(funcname)
+		req.DataType = CAN_DO
+		req.Data = []byte(funcname)
 	} else {
-		datatype = common.CAN_DO_TIMEOUT
-		data = []byte(funcname + "\x00")
-		t := common.Uint32ToBytes(timeout)
-		data = append(data, t[:]...)
+		req.DataType = CAN_DO_TIMEOUT
+		l := len(funcname)
+		req.Data = getBuffer(l + 5)
+		copy(req.Data, []byte(funcname))
+		req.Data[l] = '\x00'
+		binary.BigEndian.PutUint32(req.Data[l + 1:], timeout)
 	}
-	job := newJob(common.REQ, datatype, data)
-	worker.broadcast(job)
-
+	worker.broadcast(req)
 }
 
 // Remove a function.
-// Tell job servers 'I can not do this now' at the same time.
 func (worker *Worker) RemoveFunc(funcname string) (err error) {
+	worker.mutex.Lock()
+	defer worker.mutex.Unlock()
 	if _, ok := worker.funcs[funcname]; !ok {
-		return common.Errorf("The function does not exist: %s", funcname)
+		return fmt.Errorf("The function does not exist: %s", funcname)
 	}
 	delete(worker.funcs, funcname)
 	if worker.running {
@@ -154,27 +141,27 @@ func (worker *Worker) RemoveFunc(funcname string) (err error) {
 
 // inner remove function
 func (worker *Worker) removeFunc(funcname string) {
-	job := newJob(common.REQ, common.CANT_DO, []byte(funcname))
-	worker.broadcast(job)
+	req := getRequest()
+	req.DataType = CANT_DO
+	req.Data = []byte(funcname)
+	worker.broadcast(req)
 }
 
-func (worker *Worker) dealJob(job *Job) {
+func (worker *Worker) dealResp(resp *Response) {
 	defer func() {
-		job.Close()
 		if worker.running && worker.limit != nil {
 			<-worker.limit
 		}
 	}()
-	switch job.DataType {
-	case common.ERROR:
-		_, err := common.GetError(job.Data)
-		worker.err(err)
-	case common.JOB_ASSIGN, common.JOB_ASSIGN_UNIQ:
-		if err := worker.exec(job); err != nil {
+	switch resp.DataType {
+	case ERROR:
+		worker.err(GetError(resp.Data))
+	case JOB_ASSIGN, JOB_ASSIGN_UNIQ:
+		if err := worker.exec(resp); err != nil {
 			worker.err(err)
 		}
 	default:
-		worker.handleJob(job)
+		worker.handleResponse(resp)
 	}
 }
 
@@ -187,23 +174,29 @@ func (worker *Worker) Work() {
 	}()
 	worker.running = true
 	for _, v := range worker.agents {
+		v.Connect()
 		go v.Work()
 	}
+	worker.Reset()
 	for funcname, f := range worker.funcs {
 		worker.addFunc(funcname, f.timeout)
 	}
-	ok := true
-	for ok {
-		var job *Job
-		if job, ok = <-worker.in; ok {
-			go worker.dealJob(job)
-		}
+	var resp *Response
+	for resp = range worker.in {
+		fmt.Println(resp)
+		go worker.dealResp(resp)
 	}
 }
 
 // job handler
-func (worker *Worker) handleJob(job *Job) {
+func (worker *Worker) handleResponse(resp *Response) {
 	if worker.JobHandler != nil {
+		job := getJob()
+		job.a = worker.agents[resp.agentId]
+		job.Handle = resp.Handle
+		if resp.DataType == ECHO_RES {
+			job.data = resp.Data
+		}
 		if err := worker.JobHandler(job); err != nil {
 			worker.err(err)
 		}
@@ -221,77 +214,71 @@ func (worker *Worker) Close() {
 
 // Send a something out, get the samething back.
 func (worker *Worker) Echo(data []byte) {
-	job := newJob(common.REQ, common.ECHO_REQ, data)
-	worker.broadcast(job)
+	req := getRequest()
+	req.DataType = ECHO_REQ
+	req.Data = data
+	worker.broadcast(req)
 }
 
 // Remove all of functions.
 // Both from the worker or job servers.
 func (worker *Worker) Reset() {
-	job := newJob(common.REQ, common.RESET_ABILITIES, nil)
-	worker.broadcast(job)
+	req := getRequest()
+	req.DataType = RESET_ABILITIES
+	worker.broadcast(req)
 	worker.funcs = make(JobFuncs)
 }
 
 // Set the worker's unique id.
 func (worker *Worker) SetId(id string) {
 	worker.Id = id
-	job := newJob(common.REQ, common.SET_CLIENT_ID, []byte(id))
-	worker.broadcast(job)
+	req := getRequest()
+	req.DataType = SET_CLIENT_ID
+	req.Data = []byte(id)
+	worker.broadcast(req)
 }
 
 // Execute the job. And send back the result.
-func (worker *Worker) exec(job *Job) (err error) {
+func (worker *Worker) exec(resp *Response) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if e, ok := r.(error); ok {
 				err = e
 			} else {
-				err = common.ErrUnknown
+				err = ErrUnknown
 			}
 		}
 	}()
-	f, ok := worker.funcs[job.Fn]
+	f, ok := worker.funcs[resp.Fn]
 	if !ok {
-		return common.Errorf("The function does not exist: %s", job.Fn)
+		return fmt.Errorf("The function does not exist: %s", resp.Fn)
 	}
 	var r *result
+	job := getJob()
+	job.a = worker.agents[resp.agentId]
+	job.Handle = resp.Handle
 	if f.timeout == 0 {
 		d, e := f.f(job)
 		r = &result{data: d, err: e}
 	} else {
 		r = execTimeout(f.f, job, time.Duration(f.timeout)*time.Second)
 	}
-	var datatype uint32
+	req := getRequest()
 	if r.err == nil {
-		datatype = common.WORK_COMPLETE
+		req.DataType = WORK_COMPLETE
 	} else {
 		if r.data == nil {
-			datatype = common.WORK_FAIL
+			req.DataType = WORK_FAIL
 		} else {
-			datatype = common.WORK_EXCEPTION
+			req.DataType = WORK_EXCEPTION
 		}
 		err = r.err
 	}
-
-	job.magicCode = common.REQ
-	job.DataType = datatype
-	job.Data = r.data
+	req.Data = r.data
 	if worker.running {
-		job.agent.WriteJob(job)
+		job.a.write(req)
 	}
 	return
-}
-
-func (worker *Worker) removeAgent(a *agent) {
-	for k, v := range worker.agents {
-		if v == a {
-			worker.agents = append(worker.agents[:k], worker.agents[k+1:]...)
-		}
-	}
-	if len(worker.agents) == 0 {
-		worker.err(common.ErrNoActiveAgent)
-	}
 }
 
 type result struct {
@@ -299,7 +286,7 @@ type result struct {
 	err  error
 }
 
-func execTimeout(f JobFunc, job *Job, timeout time.Duration) (r *result) {
+func execTimeout(f JobFunc, job Job, timeout time.Duration) (r *result) {
 	rslt := make(chan *result)
 	defer close(rslt)
 	go func() {
@@ -310,8 +297,7 @@ func execTimeout(f JobFunc, job *Job, timeout time.Duration) (r *result) {
 	select {
 	case r = <-rslt:
 	case <-time.After(timeout):
-		go job.cancel()
-		return &result{err: common.ErrTimeOut}
+		return &result{err: ErrTimeOut}
 	}
 	return r
 }

@@ -46,7 +46,6 @@ func New(net, addr string) (client *Client, err error) {
 	if err = client.connect(); err != nil {
 		return
 	}
-	client.isConn = true
 	go client.readLoop()
 	go client.processLoop()
 	return
@@ -57,6 +56,10 @@ func New(net, addr string) (client *Client, err error) {
 //
 func (client *Client) connect() (err error) {
 	client.conn, err = net.Dial(client.net, client.addr)
+	if err != nil {
+		return
+	}
+	client.isConn = true
 	return
 }
 
