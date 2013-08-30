@@ -42,6 +42,6 @@ func getJob(id string, funcname, data []byte) (req *request) {
 	req.Data = getBuffer(l)
 	copy(req.Data[0:a], funcname)
 	copy(req.Data[a+1:a+b+1], []byte(id))
-	copy(req.Data[a+b+1:a+b+c+1], data)
+	copy(req.Data[a+b+2:], data)
 	return
 }
