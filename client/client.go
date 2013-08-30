@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"sync"
-	"github.com/mikespook/golib/idgen"
 )
 
 /*
@@ -30,7 +29,6 @@ type Client struct {
 	mutex        sync.RWMutex
 
 	ErrorHandler ErrorHandler
-	IdGen idgen.IdGen
 }
 
 // Create a new client.
@@ -44,7 +42,6 @@ func New(net, addr string) (client *Client, err error) {
 		respHandler:  make(map[string]ResponseHandler, QUEUE_SIZE),
 		innerHandler: make(map[string]ResponseHandler, QUEUE_SIZE),
 		in:           make(chan []byte, QUEUE_SIZE),
-		IdGen:        idgen.NewObjectId(),
 	}
 	if err = client.connect(); err != nil {
 		return
@@ -191,7 +188,7 @@ func (client *Client) handleInner(key string, resp *Response) {
 // Internal do
 func (client *Client) do(funcname string, data []byte,
 	flag uint32) (handle string, err error) {
-	id := client.IdGen.Id().(string)
+	id := IdGen.Id()
 	req := getJob(id, []byte(funcname), data)
 	req.DataType = flag
 	client.write(req)

@@ -39,8 +39,13 @@ func TestPoolEcho(t *testing.T) {
 }
 
 func TestPoolDoBg(t *testing.T) {
-	if addr, handle := pool.DoBg("ToUpper", []byte("abcdef"),
-		JOB_LOW); handle == "" {
+	addr, handle, err := pool.DoBg("ToUpper",
+		[]byte("abcdef"), JOB_LOW);
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if handle == "" {
 		t.Error("Handle is empty.")
 	} else {
 		t.Log(addr, handle)
@@ -57,8 +62,12 @@ func TestPoolDo(t *testing.T) {
 		}
 		return
 	}
-	if addr, handle := pool.Do("ToUpper", []byte("abcdef"),
-		JOB_LOW, jobHandler); handle == "" {
+	addr, handle, err := pool.Do("ToUpper",
+		[]byte("abcdef"), JOB_LOW, jobHandler)
+	if err != nil {
+		t.Error(err)
+	}
+	if handle == "" {
 		t.Error("Handle is empty.")
 	} else {
 		t.Log(addr, handle)
@@ -77,7 +86,12 @@ func TestPoolStatus(t *testing.T) {
 	if status.Running {
 		t.Errorf("The job (%s) shouldn't be running.", status.Handle)
 	}
-	addr, handle := pool.Do("Delay5sec", []byte("abcdef"), JOB_LOW, nil)
+	addr, handle, err := pool.Do("Delay5sec",
+		[]byte("abcdef"), JOB_LOW, nil)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	status, err = pool.Status(addr, handle)
 	if err != nil {
 		t.Error(err)

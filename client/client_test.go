@@ -35,8 +35,12 @@ func TestClientEcho(t *testing.T) {
 }
 
 func TestClientDoBg(t *testing.T) {
-	if handle := client.DoBg("ToUpper", []byte("abcdef"),
-		JOB_LOW); handle == "" {
+	handle, err := client.DoBg("ToUpper", []byte("abcdef"), JOB_LOW)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if handle == "" {
 		t.Error("Handle is empty.")
 	} else {
 		t.Log(handle)
@@ -53,8 +57,13 @@ func TestClientDo(t *testing.T) {
 		}
 		return
 	}
-	if handle := client.Do("ToUpper", []byte("abcdef"),
-		JOB_LOW, jobHandler); handle == "" {
+	handle, err := client.Do("ToUpper", []byte("abcdef"),
+		JOB_LOW, jobHandler)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if handle == "" {
 		t.Error("Handle is empty.")
 	} else {
 		t.Log(handle)
@@ -76,7 +85,11 @@ func TestClientStatus(t *testing.T) {
 		return
 	}
 
-	handle := client.Do("Delay5sec", []byte("abcdef"), JOB_LOW, nil)
+	handle, err := client.Do("Delay5sec", []byte("abcdef"), JOB_LOW, nil)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	status, err = client.Status(handle)
 	if err != nil {
 		t.Error(err)
