@@ -20,13 +20,13 @@ handle := c.Do("foobar", []byte("data here"), JOB_LOW | JOB_BG)
 
 */
 type Client struct {
-	net, addr, lastcall    string
-	respHandler  map[string]ResponseHandler
-	innerHandler map[string]ResponseHandler
-	in           chan []byte
-	isConn       bool
-	conn         net.Conn
-	mutex        sync.RWMutex
+	net, addr, lastcall string
+	respHandler         map[string]ResponseHandler
+	innerHandler        map[string]ResponseHandler
+	in                  chan []byte
+	isConn              bool
+	conn                net.Conn
+	mutex               sync.RWMutex
 
 	ErrorHandler ErrorHandler
 }
@@ -265,7 +265,7 @@ func (client *Client) Status(handle string) (status *Status, err error) {
 	wg.Add(1)
 	client.mutex.Lock()
 	client.lastcall = "s" + handle
-	client.innerHandler["s" + handle] = ResponseHandler(func(resp *Response) {
+	client.innerHandler["s"+handle] = ResponseHandler(func(resp *Response) {
 		defer wg.Done()
 		defer client.mutex.Unlock()
 		var err error

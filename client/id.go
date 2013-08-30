@@ -1,9 +1,9 @@
 package client
 
 import (
-	"time"
 	"strconv"
 	"sync/atomic"
+	"time"
 )
 
 var (

@@ -3,7 +3,7 @@
 // Use of this source code is governed by a MIT
 // license that can be found in the LICENSE file.
 
-package client
+package worker
 
 import (
 	"bytes"
@@ -41,5 +41,5 @@ func GetError(data []byte) (err error) {
 	return
 }
 
-// Error handler
+// An error handler
 type ErrorHandler func(error)

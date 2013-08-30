@@ -6,17 +6,20 @@
 package client
 
 import (
-	"fmt"
 	"bytes"
-	"strconv"
 	"encoding/binary"
+	"fmt"
+	"strconv"
 )
+
+// Response handler
+type ResponseHandler func(*Response)
 
 // response
 type Response struct {
-	DataType    uint32
-	Data, UID      []byte
-	Handle string
+	DataType  uint32
+	Data, UID []byte
+	Handle    string
 }
 
 // Extract the Response's result.

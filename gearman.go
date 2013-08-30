@@ -3,14 +3,14 @@
 // license that can be found in the LICENSE file.
 
 /*
-This module is Gearman API for golang. 
+This module is Gearman API for golang.
 The protocol was implemented by native way.
 */
 
 package gearman
 
 import (
-    _ "github.com/mikespook/gearman-go/common"
-    _ "github.com/mikespook/gearman-go/client"
-    _ "github.com/mikespook/gearman-go/worker"
+	_ "github.com/mikespook/gearman-go/client"
+	_ "github.com/mikespook/gearman-go/common"
+	_ "github.com/mikespook/gearman-go/worker"
 )

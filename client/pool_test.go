@@ -40,7 +40,7 @@ func TestPoolEcho(t *testing.T) {
 
 func TestPoolDoBg(t *testing.T) {
 	addr, handle, err := pool.DoBg("ToUpper",
-		[]byte("abcdef"), JOB_LOW);
+		[]byte("abcdef"), JOB_LOW)
 	if err != nil {
 		t.Error(err)
 		return
