@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"fmt"
 )
 
 /*
@@ -114,6 +115,7 @@ func (client *Client) readLoop() {
 			client.err(err)
 			continue
 		}
+		fmt.Printf("[%X]", data)
 		client.in <- data
 	}
 	close(client.in)
@@ -191,10 +193,6 @@ func (client *Client) handleInner(key string, resp *Response) {
 // Internal do
 func (client *Client) do(funcname string, data []byte,
 	flag uint32) (handle string, err error) {
-	id := IdGen.Id()
-	req := getJob(id, []byte(funcname), data)
-	req.DataType = flag
-	client.write(req)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	client.mutex.RLock()
@@ -208,6 +206,10 @@ func (client *Client) do(funcname string, data []byte,
 		}
 		handle = resp.Handle
 	})
+	id := IdGen.Id()
+	req := getJob(id, []byte(funcname), data)
+	req.DataType = flag
+	client.write(req)
 	wg.Wait()
 	return
 }
@@ -260,10 +262,6 @@ func (client *Client) DoBg(funcname string, data []byte,
 // Get job status from job server.
 // !!!Not fully tested.!!!
 func (client *Client) Status(handle string) (status *Status, err error) {
-	req := getRequest()
-	req.DataType = GET_STATUS
-	req.Data = []byte(handle)
-	client.write(req)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	client.mutex.Lock()
@@ -277,25 +275,27 @@ func (client *Client) Status(handle string) (status *Status, err error) {
 			client.err(err)
 		}
 	})
+	req := getRequest()
+	req.DataType = GET_STATUS
+	req.Data = []byte(handle)
+	client.write(req)
 	wg.Wait()
 	return
 }
 
 // Send a something out, get the samething back.
 func (client *Client) Echo(data []byte) (echo []byte, err error) {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	client.innerHandler["e"] = ResponseHandler(func(resp *Response) {
+		defer wg.Done()
+		echo = resp.Data
+	})
 	req := getRequest()
 	req.DataType = ECHO_REQ
 	req.Data = data
 	client.write(req)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	client.mutex.Lock()
 	client.lastcall = "e"
-	client.innerHandler["e"] = ResponseHandler(func(resp *Response) {
-		defer wg.Done()
-		defer client.mutex.Unlock()
-		echo = resp.Data
-	})
 	wg.Wait()
 	return
 }
