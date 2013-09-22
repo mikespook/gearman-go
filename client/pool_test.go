@@ -10,14 +10,16 @@ var (
 
 func TestPoolAdd(t *testing.T) {
 	t.Log("Add servers")
+	c := 2
 	if err := pool.Add("tcp4", "127.0.0.1:4730", 1); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if err := pool.Add("tcp4", "127.0.1.1:4730", 1); err != nil {
-		t.Error(err)
+		t.Log(err)
+		c -= 1
 	}
-	if len(pool.clients) != 2 {
-		t.Errorf("2 servers expected, %d got.", len(pool.clients))
+	if len(pool.clients) != c {
+		t.Errorf("%d servers expected, %d got.", c, len(pool.clients))
 	}
 }
 

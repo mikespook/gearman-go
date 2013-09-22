@@ -14,8 +14,7 @@ func TestClientAddServer(t *testing.T) {
 	t.Log("Add local server 127.0.0.1:4730")
 	var err error
 	if client, err = New("tcp4", "127.0.0.1:4730"); err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 	client.ErrorHandler = func(e error) {
 		t.Log(e)

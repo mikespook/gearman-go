@@ -80,8 +80,10 @@ func (pool *Pool) Add(net, addr string, rate int) (err error) {
 	} else {
 		var client *Client
 		client, err = New(net, addr)
-		item = &poolClient{Client: client, Rate: rate}
-		pool.clients[addr] = item
+		if err == nil {
+			item = &poolClient{Client: client, Rate: rate}
+			pool.clients[addr] = item
+		}
 	}
 	return
 }
