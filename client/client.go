@@ -213,9 +213,10 @@ func (client *Client) inLoop() {
         case common.ERROR:
             _, err := common.GetError(job.Data)
             client.err(err)
-        case common.WORK_DATA, common.WORK_WARNING, common.WORK_STATUS,
-            common.WORK_COMPLETE, common.WORK_FAIL, common.WORK_EXCEPTION:
-            client.handleJob(job)
+        case common.WORK_DATA, common.WORK_WARNING, common.WORK_STATUS:
+            client.handleJob(job, false)
+        case common.WORK_COMPLETE, common.WORK_FAIL, common.WORK_EXCEPTION:
+            client.handleJob(job, true)
         case common.ECHO_RES:
             client.handleEcho(job)
         case common.JOB_CREATED:
@@ -236,12 +237,14 @@ func (client *Client) err (e error) {
 }
 
 // job handler
-func (client *Client) handleJob(job *Job) {
+func (client *Client) handleJob(job *Job, terminate bool) {
     client.mutex.RLock()
     defer client.mutex.RUnlock()
     if h, ok := client.jobhandlers[job.Handle]; ok {
         h(job)
-        delete(client.jobhandlers, job.Handle)
+        if terminate {
+            delete(client.jobhandlers, job.Handle)
+        }
     }
 }
 
