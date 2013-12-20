@@ -12,20 +12,20 @@ import (
 )
 
 // Worker side job
-type Response struct {
+type InPack struct {
 	DataType  uint32
 	Data                 []byte
 	Handle, UniqueId, Fn string
-	agentId	string
+	a *agent
 }
 
 // Create a new job
-func getResponse() (resp *Response) {
-	return &Response{}
+func getInPack() (resp *InPack) {
+	return &InPack{}
 }
 
 // Decode job from byte slice
-func decodeResponse(data []byte) (resp *Response, l int, err error) {
+func decodeInPack(data []byte) (resp *InPack, l int, err error) {
 	if len(data) < MIN_PACKET_LEN { // valid package should not less 12 bytes
 		err = fmt.Errorf("Invalid data: %V", data)
 		return
@@ -36,7 +36,7 @@ func decodeResponse(data []byte) (resp *Response, l int, err error) {
 		err = fmt.Errorf("Invalid data: %V", data)
 		return
 	}
-	resp = getResponse()
+	resp = getInPack()
 	resp.DataType = binary.BigEndian.Uint32(data[4:8])
 	switch resp.DataType {
 	case JOB_ASSIGN:

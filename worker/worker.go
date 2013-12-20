@@ -183,7 +183,6 @@ func (worker *Worker) Work() {
 	}
 	var resp *Response
 	for resp = range worker.in {
-		fmt.Println(resp)
 		go worker.dealResp(resp)
 	}
 }

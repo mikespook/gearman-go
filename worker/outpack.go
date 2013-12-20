@@ -10,19 +10,19 @@ import (
 )
 
 // Worker side job
-type request struct {
+type OutPack struct {
 	DataType             uint32
 	Data                 []byte
 	Handle, UniqueId, Fn string
 }
 
-func getRequest() (req *request) {
+func getOutPack() (req *OutPack) {
 	// TODO pool
-	return &request{}
+	return &OutPack{}
 }
 
 // Encode a job to byte slice
-func (req *request) Encode() (data []byte) {
+func (req *OutPack) Encode() (data []byte) {
 	var l int
 	if req.DataType == WORK_FAIL {
 		l = len(req.Handle)
