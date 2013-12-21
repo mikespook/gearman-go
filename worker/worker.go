@@ -39,7 +39,7 @@ func foobar(job *Job) (data []byte, err os.Error) {
 type Worker struct {
 	agents  map[string]*agent
 	funcs   JobFuncs
-	in      chan *Response
+	in      chan *inPack
 	running bool
 	limit   chan bool
 
@@ -55,7 +55,7 @@ func New(l int) (worker *Worker) {
 	worker = &Worker{
 		agents: make(map[string]*agent, QUEUE_SIZE),
 		funcs:  make(JobFuncs),
-		in:     make(chan *Response, QUEUE_SIZE),
+		in:     make(chan *inPack, QUEUE_SIZE),
 	}
 	if l != Unlimited {
 		worker.limit = make(chan bool, l)
@@ -85,9 +85,9 @@ func (worker *Worker) AddServer(net, addr string) (err error) {
 // Write a job to job server.
 // Here, the job's mean is not the oraginal mean.
 // Just looks like a network package for job's result or tell job server, there was a fail.
-func (worker *Worker) broadcast(req *request) {
+func (worker *Worker) broadcast(outpack *outPack) {
 	for _, v := range worker.agents {
-		v.write(req)
+		v.write(outpack)
 	}
 }
 
@@ -110,19 +110,19 @@ func (worker *Worker) AddFunc(funcname string,
 
 // inner add function
 func (worker *Worker) addFunc(funcname string, timeout uint32) {
-	req := getRequest()
+	outpack := getOutPack()
 	if timeout == 0 {
-		req.DataType = CAN_DO
-		req.Data = []byte(funcname)
+		outpack.dataType = CAN_DO
+		outpack.data = []byte(funcname)
 	} else {
-		req.DataType = CAN_DO_TIMEOUT
+		outpack.dataType = CAN_DO_TIMEOUT
 		l := len(funcname)
-		req.Data = getBuffer(l + 5)
-		copy(req.Data, []byte(funcname))
-		req.Data[l] = '\x00'
-		binary.BigEndian.PutUint32(req.Data[l + 1:], timeout)
+		outpack.data = getBuffer(l + 5)
+		copy(outpack.data, []byte(funcname))
+		outpack.data[l] = '\x00'
+		binary.BigEndian.PutUint32(outpack.data[l + 1:], timeout)
 	}
-	worker.broadcast(req)
+	worker.broadcast(outpack)
 }
 
 // Remove a function.
@@ -141,27 +141,27 @@ func (worker *Worker) RemoveFunc(funcname string) (err error) {
 
 // inner remove function
 func (worker *Worker) removeFunc(funcname string) {
-	req := getRequest()
-	req.DataType = CANT_DO
-	req.Data = []byte(funcname)
-	worker.broadcast(req)
+	outpack := getOutPack()
+	outpack.dataType = CANT_DO
+	outpack.data = []byte(funcname)
+	worker.broadcast(outpack)
 }
 
-func (worker *Worker) dealResp(resp *Response) {
+func (worker *Worker) handleInPack(inpack *inPack) {
 	defer func() {
 		if worker.running && worker.limit != nil {
 			<-worker.limit
 		}
 	}()
-	switch resp.DataType {
+	switch inpack.dataType {
 	case ERROR:
-		worker.err(GetError(resp.Data))
+		worker.err(GetError(inpack.data))
 	case JOB_ASSIGN, JOB_ASSIGN_UNIQ:
-		if err := worker.exec(resp); err != nil {
+		if err := worker.exec(inpack); err != nil {
 			worker.err(err)
 		}
 	default:
-		worker.handleResponse(resp)
+		worker.customeHandler(inpack)
 	}
 }
 
@@ -181,22 +181,16 @@ func (worker *Worker) Work() {
 	for funcname, f := range worker.funcs {
 		worker.addFunc(funcname, f.timeout)
 	}
-	var resp *Response
-	for resp = range worker.in {
-		go worker.dealResp(resp)
+	var inpack *inPack
+	for inpack = range worker.in {
+		go worker.handleInPack(inpack)
 	}
 }
 
 // job handler
-func (worker *Worker) handleResponse(resp *Response) {
+func (worker *Worker) customeHandler(inpack *inPack) {
 	if worker.JobHandler != nil {
-		job := getJob()
-		job.a = worker.agents[resp.agentId]
-		job.Handle = resp.Handle
-		if resp.DataType == ECHO_RES {
-			job.data = resp.Data
-		}
-		if err := worker.JobHandler(job); err != nil {
+		if err := worker.JobHandler(inpack); err != nil {
 			worker.err(err)
 		}
 	}
@@ -213,32 +207,32 @@ func (worker *Worker) Close() {
 
 // Send a something out, get the samething back.
 func (worker *Worker) Echo(data []byte) {
-	req := getRequest()
-	req.DataType = ECHO_REQ
-	req.Data = data
-	worker.broadcast(req)
+	outpack := getOutPack()
+	outpack.dataType = ECHO_REQ
+	outpack.data = data
+	worker.broadcast(outpack)
 }
 
 // Remove all of functions.
 // Both from the worker or job servers.
 func (worker *Worker) Reset() {
-	req := getRequest()
-	req.DataType = RESET_ABILITIES
-	worker.broadcast(req)
+	outpack := getOutPack()
+	outpack.dataType = RESET_ABILITIES
+	worker.broadcast(outpack)
 	worker.funcs = make(JobFuncs)
 }
 
 // Set the worker's unique id.
 func (worker *Worker) SetId(id string) {
 	worker.Id = id
-	req := getRequest()
-	req.DataType = SET_CLIENT_ID
-	req.Data = []byte(id)
-	worker.broadcast(req)
+	outpack := getOutPack()
+	outpack.dataType = SET_CLIENT_ID
+	outpack.data = []byte(id)
+	worker.broadcast(outpack)
 }
 
 // Execute the job. And send back the result.
-func (worker *Worker) exec(resp *Response) (err error) {
+func (worker *Worker) exec(inpack *inPack) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if e, ok := r.(error); ok {
@@ -248,34 +242,31 @@ func (worker *Worker) exec(resp *Response) (err error) {
 			}
 		}
 	}()
-	f, ok := worker.funcs[resp.Fn]
+	f, ok := worker.funcs[inpack.fn]
 	if !ok {
-		return fmt.Errorf("The function does not exist: %s", resp.Fn)
+		return fmt.Errorf("The function does not exist: %s", inpack.fn)
 	}
 	var r *result
-	job := getJob()
-	job.a = worker.agents[resp.agentId]
-	job.Handle = resp.Handle
 	if f.timeout == 0 {
-		d, e := f.f(job)
+		d, e := f.f(inpack)
 		r = &result{data: d, err: e}
 	} else {
-		r = execTimeout(f.f, job, time.Duration(f.timeout)*time.Second)
+		r = execTimeout(f.f, inpack, time.Duration(f.timeout)*time.Second)
 	}
-	req := getRequest()
+	outpack := getOutPack()
 	if r.err == nil {
-		req.DataType = WORK_COMPLETE
+		outpack.dataType = WORK_COMPLETE
 	} else {
 		if r.data == nil {
-			req.DataType = WORK_FAIL
+			outpack.dataType = WORK_FAIL
 		} else {
-			req.DataType = WORK_EXCEPTION
+			outpack.dataType = WORK_EXCEPTION
 		}
 		err = r.err
 	}
-	req.Data = r.data
+	outpack.data = r.data
 	if worker.running {
-		job.a.write(req)
+		inpack.a.write(outpack)
 	}
 	return
 }

@@ -10,41 +10,41 @@ import (
 )
 
 // Worker side job
-type OutPack struct {
-	DataType             uint32
-	Data                 []byte
-	Handle, UniqueId, Fn string
+type outPack struct {
+	dataType             uint32
+	data                 []byte
+	handle, uniqueId, fn string
 }
 
-func getOutPack() (req *OutPack) {
+func getOutPack() (outpack *outPack) {
 	// TODO pool
-	return &OutPack{}
+	return &outPack{}
 }
 
 // Encode a job to byte slice
-func (req *OutPack) Encode() (data []byte) {
+func (outpack *outPack) Encode() (data []byte) {
 	var l int
-	if req.DataType == WORK_FAIL {
-		l = len(req.Handle)
+	if outpack.dataType == WORK_FAIL {
+		l = len(outpack.handle)
 	} else {
-		l = len(req.Data)
-		if req.Handle != "" {
-			l += len(req.Handle) + 1
+		l = len(outpack.data)
+		if outpack.handle != "" {
+			l += len(outpack.handle) + 1
 		}
 	}
 	data = getBuffer(l + MIN_PACKET_LEN)
 	binary.BigEndian.PutUint32(data[:4], REQ)
-	binary.BigEndian.PutUint32(data[4:8], req.DataType)
+	binary.BigEndian.PutUint32(data[4:8], outpack.dataType)
 	binary.BigEndian.PutUint32(data[8:MIN_PACKET_LEN], uint32(l))
 	i := MIN_PACKET_LEN
-	if req.Handle != "" {
-		hi := len(req.Handle) + i
-		copy(data[i:hi], []byte(req.Handle))
-		if req.DataType != WORK_FAIL {
+	if outpack.handle != "" {
+		hi := len(outpack.handle) + i
+		copy(data[i:hi], []byte(outpack.handle))
+		if outpack.dataType != WORK_FAIL {
 			data[hi] = '\x00'
 		}
 		i = i + hi
 	}
-	copy(data[i:], req.Data)
+	copy(data[i:], outpack.data)
 	return
 }

@@ -39,38 +39,10 @@ func (a *agent) Connect() (err error) {
 }
 
 func (a *agent) Work() {
-	go a.readLoop()
-
-	var resp *Response
+	var inpack *inPack
 	var l int
 	var err error
 	var data, leftdata []byte
-	for data = range a.in {
-		if len(leftdata) > 0 { // some data left for processing
-			data = append(leftdata, data...)
-		}
-		l = len(data)
-		if l < MIN_PACKET_LEN { // not enough data
-			leftdata = data
-			continue
-		}
-		if resp, l, err = decodeResponse(data); err != nil {
-			a.worker.err(err)
-			continue
-		}
-		leftdata = nil
-		resp.agentId = a.net + a.addr
-		a.worker.in <- resp
-		if len(data) > l {
-			leftdata = data[l:]
-		}
-	}
-}
-
-// read data from socket
-func (a *agent) readLoop() {
-	var data []byte
-	var err error
 	for a.isConn {
 		if data, err = a.read(BUFFER_SIZE); err != nil {
 			if err == ErrConnClosed {
@@ -79,9 +51,24 @@ func (a *agent) readLoop() {
 			a.worker.err(err)
 			continue
 		}
-		a.in <- data
+		if len(leftdata) > 0 { // some data left for processing
+			data = append(leftdata, data...)
+		}
+		if len(data) < MIN_PACKET_LEN { // not enough data
+			leftdata = data
+			continue
+		}
+		if inpack, l, err = decodeInPack(data); err != nil {
+			a.worker.err(err)
+			continue
+		}
+		leftdata = nil
+		inpack.a = a
+		a.worker.in <- inpack
+		if len(data) > l {
+			leftdata = data[l:]
+		}
 	}
-	close(a.in)
 }
 
 func (a *agent) Close() {
@@ -115,9 +102,9 @@ func (a *agent) read(length int) (data []byte, err error) {
 }
 
 // Internal write the encoded job.
-func (a *agent) write(req *request) (err error) {
+func (a *agent) write(outpack *outPack) (err error) {
 	var n int
-	buf := req.Encode()
+	buf := outpack.Encode()
 	for i := 0; i < len(buf); i += n {
 		n, err = a.conn.Write(buf[i:])
 		if err != nil {
