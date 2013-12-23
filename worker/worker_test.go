@@ -1,6 +1,9 @@
 package worker
 
-import "testing"
+import (
+"sync"
+"testing"
+)
 
 var worker *Worker
 
@@ -44,7 +47,20 @@ func TestWorkerRemoveFunc(t *testing.T) {
 }
 
 func TestWork(t *testing.T) {
+	var wg sync.WaitGroup
+	worker.JobHandler = func(job Job) error {
+		t.Logf("%s", job.Data())
+		wg.Done()
+		return nil
+	}
+	if err := worker.Ready(); err != nil {
+		t.Error(err)
+		return
+	}
 	go worker.Work()
+	wg.Add(1)
+	worker.Echo([]byte("Hello"))
+	wg.Wait()
 }
 
 func TestWorkerClose(t *testing.T) {

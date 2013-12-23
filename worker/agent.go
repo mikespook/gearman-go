@@ -72,7 +72,21 @@ func (a *agent) Work() {
 }
 
 func (a *agent) Close() {
-	a.conn.Close()
+	if a.conn != nil {
+		a.conn.Close()
+	}
+}
+
+func (a *agent) Grab() {
+	outpack := getOutPack()
+	outpack.dataType = GRAB_JOB_UNIQ
+	a.write(outpack)
+}
+
+func (a *agent) PreSleep() {
+	outpack := getOutPack()
+	outpack.dataType = PRE_SLEEP
+	a.write(outpack)
 }
 
 // read length bytes from the socket

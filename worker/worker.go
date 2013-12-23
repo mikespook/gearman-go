@@ -154,6 +154,10 @@ func (worker *Worker) handleInPack(inpack *inPack) {
 		}
 	}()
 	switch inpack.dataType {
+	case NO_JOB:
+		inpack.a.PreSleep()
+	case NOOP:
+		inpack.a.Grab()
 	case ERROR:
 		worker.err(GetError(inpack.data))
 	case JOB_ASSIGN, JOB_ASSIGN_UNIQ:
@@ -165,6 +169,20 @@ func (worker *Worker) handleInPack(inpack *inPack) {
 	}
 }
 
+func (worker *Worker) Ready() (err error) {
+	for _, v := range worker.agents {
+		if err = v.Connect(); err != nil {
+			return
+		}
+		go v.Work()
+	}
+	worker.Reset()
+	for funcname, f := range worker.funcs {
+		worker.addFunc(funcname, f.timeout)
+	}
+	return
+}
+
 // Main loop
 func (worker *Worker) Work() {
 	defer func() {
@@ -173,14 +191,6 @@ func (worker *Worker) Work() {
 		}
 	}()
 	worker.running = true
-	for _, v := range worker.agents {
-		v.Connect()
-		go v.Work()
-	}
-	worker.Reset()
-	for funcname, f := range worker.funcs {
-		worker.addFunc(funcname, f.timeout)
-	}
 	var inpack *inPack
 	for inpack = range worker.in {
 		go worker.handleInPack(inpack)
@@ -267,6 +277,7 @@ func (worker *Worker) exec(inpack *inPack) (err error) {
 	outpack.data = r.data
 	if worker.running {
 		inpack.a.write(outpack)
+		inpack.a.Grab()
 	}
 	return
 }
