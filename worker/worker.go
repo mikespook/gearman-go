@@ -5,10 +5,10 @@
 package worker
 
 import (
-	"fmt"
-	"time"
-	"sync"
 	"encoding/binary"
+	"fmt"
+	"sync"
+	"time"
 )
 
 const (
@@ -46,8 +46,8 @@ type Worker struct {
 	Id string
 	// assign a ErrFunc to handle errors
 	ErrorHandler ErrorHandler
-	JobHandler JobHandler
-	mutex sync.Mutex
+	JobHandler   JobHandler
+	mutex        sync.Mutex
 }
 
 // Get a new worker
@@ -78,7 +78,7 @@ func (worker *Worker) AddServer(net, addr string) (err error) {
 	if err != nil {
 		return err
 	}
-	worker.agents[net + addr] = a
+	worker.agents[net+addr] = a
 	return
 }
 
@@ -120,7 +120,7 @@ func (worker *Worker) addFunc(funcname string, timeout uint32) {
 		outpack.data = getBuffer(l + 5)
 		copy(outpack.data, []byte(funcname))
 		outpack.data[l] = '\x00'
-		binary.BigEndian.PutUint32(outpack.data[l + 1:], timeout)
+		binary.BigEndian.PutUint32(outpack.data[l+1:], timeout)
 	}
 	worker.broadcast(outpack)
 }

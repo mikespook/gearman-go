@@ -7,17 +7,17 @@ package worker
 
 import (
 	"bytes"
-	"fmt"
 	"encoding/binary"
+	"fmt"
 	"strconv"
 )
 
 // Worker side job
 type inPack struct {
-	dataType  uint32
+	dataType             uint32
 	data                 []byte
 	handle, uniqueId, fn string
-	a *agent
+	a                    *agent
 }
 
 // Create a new job
@@ -38,7 +38,7 @@ func (inpack *inPack) SendData(data []byte) {
 	l := hl + len(data) + 1
 	outpack.data = getBuffer(l)
 	copy(outpack.data, []byte(inpack.handle))
-	copy(outpack.data[hl + 1:], data)
+	copy(outpack.data[hl+1:], data)
 	inpack.a.write(outpack)
 }
 
@@ -49,7 +49,7 @@ func (inpack *inPack) SendWarning(data []byte) {
 	l := hl + len(data) + 1
 	outpack.data = getBuffer(l)
 	copy(outpack.data, []byte(inpack.handle))
-	copy(outpack.data[hl + 1:], data)
+	copy(outpack.data[hl+1:], data)
 	inpack.a.write(outpack)
 }
 
@@ -69,7 +69,6 @@ func (inpack *inPack) UpdateStatus(numerator, denominator int) {
 	copy(outpack.data[hl+nl+2:], d)
 	inpack.a.write(outpack)
 }
-
 
 // Decode job from byte slice
 func decodeInPack(data []byte) (inpack *inPack, l int, err error) {

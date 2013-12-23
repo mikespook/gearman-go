@@ -1,8 +1,8 @@
 package worker
 
 import (
-"sync"
-"testing"
+	"sync"
+	"testing"
 )
 
 var worker *Worker

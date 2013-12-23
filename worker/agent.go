@@ -11,17 +11,17 @@ import (
 
 // The agent of job server.
 type agent struct {
-	conn   net.Conn
-	worker *Worker
-	in     chan []byte
-	net, addr   string
-	isConn bool
+	conn      net.Conn
+	worker    *Worker
+	in        chan []byte
+	net, addr string
+	isConn    bool
 }
 
 // Create the agent of job server.
 func newAgent(net, addr string, worker *Worker) (a *agent, err error) {
 	a = &agent{
-		net: net,
+		net:    net,
 		addr:   addr,
 		worker: worker,
 		in:     make(chan []byte, QUEUE_SIZE),
