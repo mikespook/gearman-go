@@ -41,6 +41,7 @@ const (
 	STATUS_RES      = 20
 	SET_CLIENT_ID   = 22
 	CAN_DO_TIMEOUT  = 23
+	ALL_YOURS       = 24
 	WORK_EXCEPTION  = 25
 	WORK_DATA       = 28
 	WORK_WARNING    = 29

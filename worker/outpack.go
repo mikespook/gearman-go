@@ -12,9 +12,9 @@ import (
 
 // Worker side job
 type outPack struct {
-	dataType             uint32
-	data                 []byte
-	handle, uniqueId, fn string
+	dataType uint32
+	data     []byte
+	handle   string
 }
 
 func getOutPack() (outpack *outPack) {
