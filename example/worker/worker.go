@@ -45,10 +45,10 @@ func main() {
 	}
 	w.AddServer("tcp4", "127.0.0.1:4730")
 	w.AddFunc("ToUpper", ToUpper, worker.Immediately)
-    w.AddFunc("ToUpperTimeOut5", ToUpperDelay10, 5)
-    w.AddFunc("ToUpperTimeOut20", ToUpperDelay10, 20)
-    w.AddFunc("SysInfo", worker.SysInfo, worker.Immediately)
-    w.AddFunc("MemInfo", worker.MemInfo, worker.Immediately)
+	w.AddFunc("ToUpperTimeOut5", ToUpperDelay10, 5)
+	w.AddFunc("ToUpperTimeOut20", ToUpperDelay10, 20)
+	w.AddFunc("SysInfo", worker.SysInfo, worker.Immediately)
+	w.AddFunc("MemInfo", worker.MemInfo, worker.Immediately)
 	if err := w.Ready(); err != nil {
 		log.Fatal(err)
 		return
