@@ -15,7 +15,6 @@ type agent struct {
 	worker    *Worker
 	in        chan []byte
 	net, addr string
-	isConn    bool
 }
 
 // Create the agent of job server.
@@ -34,16 +33,16 @@ func (a *agent) Connect() (err error) {
 	if err != nil {
 		return
 	}
-	a.isConn = true
+	go a.work()
 	return
 }
 
-func (a *agent) Work() {
+func (a *agent) work() {
 	var inpack *inPack
 	var l int
 	var err error
 	var data, leftdata []byte
-	for a.isConn {
+	for {
 		if data, err = a.read(BUFFER_SIZE); err != nil {
 			if err == ErrConnClosed {
 				break
@@ -72,9 +71,7 @@ func (a *agent) Work() {
 }
 
 func (a *agent) Close() {
-	if a.conn != nil {
-		a.conn.Close()
-	}
+	a.conn.Close()
 }
 
 func (a *agent) Grab() {
@@ -96,13 +93,11 @@ func (a *agent) read(length int) (data []byte, err error) {
 	// read until data can be unpacked
 	for i := length; i > 0 || len(data) < MIN_PACKET_LEN; i -= n {
 		if n, err = a.conn.Read(buf); err != nil {
-			if !a.isConn {
-				err = ErrConnClosed
-				return
-			}
 			if err == io.EOF && n == 0 {
 				if data == nil {
 					err = ErrConnection
+				} else {
+					err = ErrConnClosed
 				}
 			}
 			return

@@ -174,9 +174,7 @@ func (worker *Worker) Ready() (err error) {
 		if err = v.Connect(); err != nil {
 			return
 		}
-		go v.Work()
 	}
-	worker.Reset()
 	for funcname, f := range worker.funcs {
 		worker.addFunc(funcname, f.timeout)
 	}
@@ -185,12 +183,10 @@ func (worker *Worker) Ready() (err error) {
 
 // Main loop
 func (worker *Worker) Work() {
-	defer func() {
-		for _, v := range worker.agents {
-			v.Close()
-		}
-	}()
 	worker.running = true
+	for _, v := range worker.agents {
+		v.Grab()
+	}
 	var inpack *inPack
 	for inpack = range worker.in {
 		go worker.handleInPack(inpack)
@@ -263,19 +259,20 @@ func (worker *Worker) exec(inpack *inPack) (err error) {
 	} else {
 		r = execTimeout(f.f, inpack, time.Duration(f.timeout)*time.Second)
 	}
-	outpack := getOutPack()
-	if r.err == nil {
-		outpack.dataType = WORK_COMPLETE
-	} else {
-		if r.data == nil {
-			outpack.dataType = WORK_FAIL
-		} else {
-			outpack.dataType = WORK_EXCEPTION
-		}
-		err = r.err
-	}
-	outpack.data = r.data
 	if worker.running {
+		outpack := getOutPack()
+		if r.err == nil {
+			outpack.dataType = WORK_COMPLETE
+		} else {
+			if len(r.data) == 0 {
+				outpack.dataType = WORK_FAIL
+			} else {
+				outpack.dataType = WORK_EXCEPTION
+			}
+			err = r.err
+		}
+		outpack.handle = inpack.handle
+		outpack.data = r.data
 		inpack.a.write(outpack)
 		inpack.a.Grab()
 	}

@@ -6,6 +6,7 @@
 package worker
 
 import (
+//	"fmt"
 	"encoding/binary"
 )
 
@@ -43,8 +44,10 @@ func (outpack *outPack) Encode() (data []byte) {
 		if outpack.dataType != WORK_FAIL {
 			data[hi] = '\x00'
 		}
-		i = i + hi
+		i = hi + 1
 	}
-	copy(data[i:], outpack.data)
+	if outpack.dataType != WORK_FAIL {
+		copy(data[i:], outpack.data)
+	}
 	return
 }
