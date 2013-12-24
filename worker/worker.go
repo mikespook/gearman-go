@@ -12,9 +12,6 @@ import (
 )
 
 const (
-	Unlimited = 0
-	OneByOne  = 1
-
 	Immediately = 0
 )
 
@@ -22,7 +19,7 @@ const (
 Worker side api for gearman
 
 usage:
-w = worker.New(worker.Unlimited)
+w = worker.New()
 w.AddFunction("foobar", foobar)
 w.AddServer("127.0.0.1:4730")
 w.Work() // Enter the worker's main loop
@@ -37,11 +34,10 @@ func foobar(job *Job) (data []byte, err os.Error) {
 }
 */
 type Worker struct {
-	agents  map[string]*agent
+	agents  []*agent
 	funcs   JobFuncs
 	in      chan *inPack
 	running bool
-	limit   chan bool
 
 	Id string
 	// assign a ErrFunc to handle errors
@@ -51,14 +47,11 @@ type Worker struct {
 }
 
 // Get a new worker
-func New(l int) (worker *Worker) {
+func New() (worker *Worker) {
 	worker = &Worker{
-		agents: make(map[string]*agent, QUEUE_SIZE),
+		agents: make([]*agent, 0),
 		funcs:  make(JobFuncs),
 		in:     make(chan *inPack, QUEUE_SIZE),
-	}
-	if l != Unlimited {
-		worker.limit = make(chan bool, l)
 	}
 	return
 }
@@ -78,7 +71,7 @@ func (worker *Worker) AddServer(net, addr string) (err error) {
 	if err != nil {
 		return err
 	}
-	worker.agents[net+addr] = a
+	worker.agents = append(worker.agents, a)
 	return
 }
 
@@ -148,11 +141,6 @@ func (worker *Worker) removeFunc(funcname string) {
 }
 
 func (worker *Worker) handleInPack(inpack *inPack) {
-	defer func() {
-		if worker.running && worker.limit != nil {
-			<-worker.limit
-		}
-	}()
 	switch inpack.dataType {
 	case NO_JOB:
 		inpack.a.PreSleep()
@@ -206,9 +194,6 @@ func (worker *Worker) customeHandler(inpack *inPack) {
 func (worker *Worker) Close() {
 	worker.running = false
 	close(worker.in)
-	if worker.limit != nil {
-		close(worker.limit)
-	}
 }
 
 // Send a something out, get the samething back.
