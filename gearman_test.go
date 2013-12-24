@@ -54,6 +54,10 @@ func TestJobs(t *testing.T) {
 	w.ErrorHandler = func(e error) {
 		t.Error(e)
 	}
+	if err := w.Ready(); err != nil {
+		t.Error(err)
+		return
+	}
 	go w.Work()
 	t.Log("Worker is running...")
 
