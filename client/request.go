@@ -9,7 +9,7 @@ import (
 	"encoding/binary"
 )
 
-// request
+// Request from client
 type request struct {
 	DataType uint32
 	Data     []byte

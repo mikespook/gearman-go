@@ -34,7 +34,12 @@ Usage
     w.AddServer("127.0.0.1:4730")
     w.AddFunc("ToUpper", ToUpper, worker.Immediately)
     w.AddFunc("ToUpperTimeOut5", ToUpper, 5)
-    w.Work()
+	if err := w.Ready(); err != nil {
+		log.Fatal(err)
+		return
+	}
+	go w.Work()
+	
 
 ## Client
 

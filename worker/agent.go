@@ -11,17 +11,16 @@ import (
 
 // The agent of job server.
 type agent struct {
-	conn   net.Conn
-	worker *Worker
-	in     chan []byte
-	net, addr   string
-	isConn bool
+	conn      net.Conn
+	worker    *Worker
+	in        chan []byte
+	net, addr string
 }
 
 // Create the agent of job server.
 func newAgent(net, addr string, worker *Worker) (a *agent, err error) {
 	a = &agent{
-		net: net,
+		net:    net,
 		addr:   addr,
 		worker: worker,
 		in:     make(chan []byte, QUEUE_SIZE),
@@ -34,44 +33,16 @@ func (a *agent) Connect() (err error) {
 	if err != nil {
 		return
 	}
-	a.isConn = true
+	go a.work()
 	return
 }
 
-func (a *agent) Work() {
-	go a.readLoop()
-
-	var resp *Response
+func (a *agent) work() {
+	var inpack *inPack
 	var l int
 	var err error
 	var data, leftdata []byte
-	for data = range a.in {
-		if len(leftdata) > 0 { // some data left for processing
-			data = append(leftdata, data...)
-		}
-		l = len(data)
-		if l < MIN_PACKET_LEN { // not enough data
-			leftdata = data
-			continue
-		}
-		if resp, l, err = decodeResponse(data); err != nil {
-			a.worker.err(err)
-			continue
-		}
-		leftdata = nil
-		resp.agentId = a.net + a.addr
-		a.worker.in <- resp
-		if len(data) > l {
-			leftdata = data[l:]
-		}
-	}
-}
-
-// read data from socket
-func (a *agent) readLoop() {
-	var data []byte
-	var err error
-	for a.isConn {
+	for {
 		if data, err = a.read(BUFFER_SIZE); err != nil {
 			if err == ErrConnClosed {
 				break
@@ -79,13 +50,40 @@ func (a *agent) readLoop() {
 			a.worker.err(err)
 			continue
 		}
-		a.in <- data
+		if len(leftdata) > 0 { // some data left for processing
+			data = append(leftdata, data...)
+		}
+		if len(data) < MIN_PACKET_LEN { // not enough data
+			leftdata = data
+			continue
+		}
+		if inpack, l, err = decodeInPack(data); err != nil {
+			a.worker.err(err)
+			continue
+		}
+		leftdata = nil
+		inpack.a = a
+		a.worker.in <- inpack
+		if len(data) > l {
+			leftdata = data[l:]
+		}
 	}
-	close(a.in)
 }
 
 func (a *agent) Close() {
 	a.conn.Close()
+}
+
+func (a *agent) Grab() {
+	outpack := getOutPack()
+	outpack.dataType = GRAB_JOB_UNIQ
+	a.write(outpack)
+}
+
+func (a *agent) PreSleep() {
+	outpack := getOutPack()
+	outpack.dataType = PRE_SLEEP
+	a.write(outpack)
 }
 
 // read length bytes from the socket
@@ -95,13 +93,11 @@ func (a *agent) read(length int) (data []byte, err error) {
 	// read until data can be unpacked
 	for i := length; i > 0 || len(data) < MIN_PACKET_LEN; i -= n {
 		if n, err = a.conn.Read(buf); err != nil {
-			if !a.isConn {
-				err = ErrConnClosed
-				return
-			}
 			if err == io.EOF && n == 0 {
 				if data == nil {
 					err = ErrConnection
+				} else {
+					err = ErrConnClosed
 				}
 			}
 			return
@@ -115,9 +111,9 @@ func (a *agent) read(length int) (data []byte, err error) {
 }
 
 // Internal write the encoded job.
-func (a *agent) write(req *request) (err error) {
+func (a *agent) write(outpack *outPack) (err error) {
 	var n int
-	buf := req.Encode()
+	buf := outpack.Encode()
 	for i := 0; i < len(buf); i += n {
 		n, err = a.conn.Write(buf[i:])
 		if err != nil {

@@ -9,7 +9,7 @@ import (
 	"io"
 	"net"
 	"sync"
-	"fmt"
+//	"fmt"
 )
 
 /*
@@ -21,13 +21,14 @@ handle := c.Do("foobar", []byte("data here"), JOB_LOW | JOB_BG)
 
 */
 type Client struct {
+	sync.Mutex
+
 	net, addr, lastcall string
 	respHandler         map[string]ResponseHandler
 	innerHandler        map[string]ResponseHandler
 	in                  chan []byte
 	isConn              bool
 	conn                net.Conn
-	mutex               sync.RWMutex
 
 	ErrorHandler ErrorHandler
 }
@@ -115,7 +116,6 @@ func (client *Client) readLoop() {
 			client.err(err)
 			continue
 		}
-		fmt.Printf("[%X]", data)
 		client.in <- data
 	}
 	close(client.in)
@@ -141,23 +141,25 @@ func (client *Client) processLoop() {
 			continue
 		}
 		leftdata = nil
-		switch resp.DataType {
-		case ERROR:
-			if client.lastcall != "" {
-				client.handleInner(client.lastcall, resp)
-				client.lastcall = ""
-			} else {
-				client.err(GetError(resp.Data))
+		for resp != nil {
+			switch resp.DataType {
+			case ERROR:
+				if client.lastcall != "" {
+					resp = client.handleInner(client.lastcall, resp)
+					client.lastcall = ""
+				} else {
+					client.err(GetError(resp.Data))
+				}
+			case STATUS_RES:
+				resp = client.handleInner("s"+resp.Handle, resp)
+			case JOB_CREATED:
+				resp = client.handleInner("c", resp)
+			case ECHO_RES:
+				resp = client.handleInner("e", resp)
+			case WORK_DATA, WORK_WARNING, WORK_STATUS, WORK_COMPLETE,
+				WORK_FAIL, WORK_EXCEPTION:
+				resp = client.handleResponse(resp.Handle, resp)
 			}
-		case STATUS_RES:
-			client.handleInner("s"+resp.Handle, resp)
-		case JOB_CREATED:
-			client.handleInner("c", resp)
-		case ECHO_RES:
-			client.handleInner("e", resp)
-		case WORK_DATA, WORK_WARNING, WORK_STATUS, WORK_COMPLETE,
-			WORK_FAIL, WORK_EXCEPTION:
-			client.handleResponse(resp.Handle, resp)
 		}
 		if len(data) > l {
 			leftdata = data[l:]
@@ -173,44 +175,44 @@ func (client *Client) err(e error) {
 }
 
 // job handler
-func (client *Client) handleResponse(key string, resp *Response) {
-	client.mutex.RLock()
-	defer client.mutex.RUnlock()
+func (client *Client) handleResponse(key string, resp *Response) *Response {
 	if h, ok := client.respHandler[key]; ok {
 		h(resp)
 		delete(client.respHandler, key)
+		return nil
 	}
+	return resp
 }
 
 // job handler
-func (client *Client) handleInner(key string, resp *Response) {
+func (client *Client) handleInner(key string, resp *Response) * Response {
 	if h, ok := client.innerHandler[key]; ok {
 		h(resp)
 		delete(client.innerHandler, key)
+		return nil
 	}
+	return resp
 }
 
 // Internal do
 func (client *Client) do(funcname string, data []byte,
 	flag uint32) (handle string, err error) {
-	var wg sync.WaitGroup
-	wg.Add(1)
-	client.mutex.RLock()
+	var mutex sync.Mutex
+	mutex.Lock()
 	client.lastcall = "c"
-	client.innerHandler["c"] = ResponseHandler(func(resp *Response) {
-		defer wg.Done()
-		defer client.mutex.RUnlock()
+	client.innerHandler["c"] = func(resp *Response) {
 		if resp.DataType == ERROR {
 			err = GetError(resp.Data)
 			return
 		}
 		handle = resp.Handle
-	})
+		mutex.Unlock()
+	}
 	id := IdGen.Id()
 	req := getJob(id, []byte(funcname), data)
 	req.DataType = flag
 	client.write(req)
-	wg.Wait()
+	mutex.Lock()
 	return
 }
 
@@ -232,8 +234,6 @@ func (client *Client) Do(funcname string, data []byte,
 		datatype = SUBMIT_JOB
 	}
 	handle, err = client.do(funcname, data, datatype)
-	client.mutex.Lock()
-	defer client.mutex.Unlock()
 	if h != nil {
 		client.respHandler[handle] = h
 	}
@@ -262,41 +262,39 @@ func (client *Client) DoBg(funcname string, data []byte,
 // Get job status from job server.
 // !!!Not fully tested.!!!
 func (client *Client) Status(handle string) (status *Status, err error) {
-	var wg sync.WaitGroup
-	wg.Add(1)
-	client.mutex.Lock()
+	var mutex sync.Mutex
+	mutex.Lock()
 	client.lastcall = "s" + handle
-	client.innerHandler["s"+handle] = ResponseHandler(func(resp *Response) {
-		defer wg.Done()
-		defer client.mutex.Unlock()
+	client.innerHandler["s"+handle] = func(resp *Response) {
 		var err error
 		status, err = resp.Status()
 		if err != nil {
 			client.err(err)
 		}
-	})
+		mutex.Unlock()
+	}
 	req := getRequest()
 	req.DataType = GET_STATUS
 	req.Data = []byte(handle)
 	client.write(req)
-	wg.Wait()
+	mutex.Lock()
 	return
 }
 
 // Send a something out, get the samething back.
 func (client *Client) Echo(data []byte) (echo []byte, err error) {
-	var wg sync.WaitGroup
-	wg.Add(1)
-	client.innerHandler["e"] = ResponseHandler(func(resp *Response) {
-		defer wg.Done()
+	var mutex sync.Mutex
+	mutex.Lock()
+	client.innerHandler["e"] = func(resp *Response) {
 		echo = resp.Data
-	})
+		mutex.Unlock()
+	}
 	req := getRequest()
 	req.DataType = ECHO_REQ
 	req.Data = data
-	client.write(req)
 	client.lastcall = "e"
-	wg.Wait()
+	client.write(req)
+	mutex.Lock()
 	return
 }
 
