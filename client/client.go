@@ -1,15 +1,10 @@
-// Copyright 2011 Xing Xing <mikespook@gmail.com>.
-// All rights reserved.
-// Use of this source code is governed by a MIT
-// license that can be found in the LICENSE file.
-
 package client
 
 import (
 	"io"
 	"net"
 	"sync"
-//	"fmt"
+	//	"fmt"
 )
 
 /*
@@ -185,7 +180,7 @@ func (client *Client) handleResponse(key string, resp *Response) *Response {
 }
 
 // job handler
-func (client *Client) handleInner(key string, resp *Response) * Response {
+func (client *Client) handleInner(key string, resp *Response) *Response {
 	if h, ok := client.innerHandler[key]; ok {
 		h(resp)
 		delete(client.innerHandler, key)

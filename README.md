@@ -3,8 +3,18 @@ Gearman-Go
 
 [![Build Status](https://travis-ci.org/mikespook/gearman-go.png?branch=master)](https://travis-ci.org/mikespook/gearman-go)
 
-This package is a [Gearman](http://gearman.org/) API for [Golang](http://golang.org).
-It was implemented a native protocol for both worker and client API.
+This module is a [Gearman](http://gearman.org/) API for the [Go Programming Language](http://golang.org).
+The protocols were written in pure Go. It contains two sub-packages:
+
+The client package is used for sending jobs to the Gearman job server,
+and getting responses from the server.
+
+	"github.com/mikespook/gearman-go/client"
+
+The worker package will help developers in developing Gearman worker
+service easily.
+
+	"github.com/mikespook/gearman-go/worker"
 
 Install
 =======
@@ -17,10 +27,9 @@ Install the worker package:
 
 > $ go get github.com/mikespook/gearman-go/worker
 
-Install both:
+Both of them:
 
 > $ go get github.com/mikespook/gearman-go
-	
 
 Usage
 =====
@@ -43,19 +52,22 @@ Usage
 
 ## Client
 
-    c, err := client.New("tcp4", "127.0.0.1:4730")
-    // ...
-    defer c.Close()
-    data := []byte("Hello\x00 world")
-    c.ErrHandler = func(e error) {
+	// ...
+	c, err := client.New("tcp4", "127.0.0.1:4730")
+    // ... error handling
+	defer c.Close()
+	c.ErrorHandler = func(e error) {
         log.Println(e)
-        panic(e)
     }
+    echo := []byte("Hello\x00 world")
+	echomsg, err := c.Echo(echo)
+	// ... error handling
+    log.Println(string(echomsg))
     jobHandler := func(job *client.Job) {
         log.Printf("%s", job.Data)
     }
-    handle := c.Do("ToUpper", data, client.JOB_NORMAL, jobHandler)
-    // ...
+    handle, err := c.Do("ToUpper", echo, client.JOB_NORMAL, jobHandler)
+	// ...	
 
 Branches
 ========
@@ -64,9 +76,9 @@ Version 0.x means: _It is far far away from stable._
 
 __Use at your own risk!__
 
- * 0.1-testing Old API and some known issues, eg. [issue-14](https://github.com/mikespook/gearman-go/issues/14)
- * 0.2-dev Refactoring a lot of things
  * master current usable version
+ * 0.2-dev Refactoring a lot of things
+ * 0.1-testing Old API and some known issues, eg. [issue-14](https://github.com/mikespook/gearman-go/issues/14)
 
 Authors
 =======

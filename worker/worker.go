@@ -1,7 +1,3 @@
-// Copyright 2011 Xing Xing <mikespook@gmail.com> All rights reserved.
-// Use of this source code is governed by a MIT
-// license that can be found in the LICENSE file.
-
 package worker
 
 import (
@@ -53,12 +49,12 @@ type Worker struct {
 // Get a new worker
 func New(limit int) (worker *Worker) {
 	worker = &Worker{
-		agents: make([]*agent, 0),
+		agents: make([]*agent, 0, limit),
 		funcs:  make(JobFuncs),
 		in:     make(chan *inPack, QUEUE_SIZE),
 	}
 	if limit != Unlimited {
-		worker.limit = make(chan bool, limit - 1)
+		worker.limit = make(chan bool, limit-1)
 	}
 	return
 }
@@ -161,7 +157,7 @@ func (worker *Worker) handleInPack(inpack *inPack) {
 				worker.err(err)
 			}
 		}()
-		if (worker.limit != nil) {
+		if worker.limit != nil {
 			worker.limit <- true
 		}
 		inpack.a.Grab()
@@ -240,7 +236,7 @@ func (worker *Worker) SetId(id string) {
 // Execute the job. And send back the result.
 func (worker *Worker) exec(inpack *inPack) (err error) {
 	defer func() {
-		if (worker.limit != nil) {
+		if worker.limit != nil {
 			<-worker.limit
 		}
 		if r := recover(); r != nil {
