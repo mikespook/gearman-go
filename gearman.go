@@ -11,8 +11,8 @@ and getting responses from the server.
 
 	import "github.com/mikespook/gearman-go/client"
 
-The worker package will help developers in developing Gearman worker
-service easily.
+The worker package will help developers to develop Gearman's worker
+in an easy way.
 
 	import "github.com/mikespook/gearman-go/worker"
 */
