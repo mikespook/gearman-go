@@ -42,7 +42,7 @@ func TestPoolEcho(t *testing.T) {
 
 func TestPoolDoBg(t *testing.T) {
 	addr, handle, err := pool.DoBg("ToUpper",
-		[]byte("abcdef"), JOB_LOW)
+		[]byte("abcdef"), JobLow)
 	if err != nil {
 		t.Error(err)
 		return
@@ -65,7 +65,7 @@ func TestPoolDo(t *testing.T) {
 		return
 	}
 	addr, handle, err := pool.Do("ToUpper",
-		[]byte("abcdef"), JOB_LOW, jobHandler)
+		[]byte("abcdef"), JobLow, jobHandler)
 	if err != nil {
 		t.Error(err)
 	}
@@ -89,7 +89,7 @@ func TestPoolStatus(t *testing.T) {
 		t.Errorf("The job (%s) shouldn't be running.", status.Handle)
 	}
 	addr, handle, err := pool.Do("Delay5sec",
-		[]byte("abcdef"), JOB_LOW, nil)
+		[]byte("abcdef"), JobLow, nil)
 	if err != nil {
 		t.Error(err)
 		return

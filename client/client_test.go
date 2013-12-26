@@ -13,7 +13,7 @@ var client *Client
 func TestClientAddServer(t *testing.T) {
 	t.Log("Add local server 127.0.0.1:4730")
 	var err error
-	if client, err = New("tcp4", "127.0.0.1:4730"); err != nil {
+	if client, err = New(Network, "127.0.0.1:4730"); err != nil {
 		t.Fatal(err)
 	}
 	client.ErrorHandler = func(e error) {
@@ -34,7 +34,7 @@ func TestClientEcho(t *testing.T) {
 }
 
 func TestClientDoBg(t *testing.T) {
-	handle, err := client.DoBg("ToUpper", []byte("abcdef"), JOB_LOW)
+	handle, err := client.DoBg("ToUpper", []byte("abcdef"), JobLow)
 	if err != nil {
 		t.Error(err)
 		return
@@ -57,7 +57,7 @@ func TestClientDo(t *testing.T) {
 		return
 	}
 	handle, err := client.Do("ToUpper", []byte("abcdef"),
-		JOB_LOW, jobHandler)
+		JobLow, jobHandler)
 	if err != nil {
 		t.Error(err)
 		return
@@ -84,7 +84,7 @@ func TestClientStatus(t *testing.T) {
 		return
 	}
 
-	handle, err := client.Do("Delay5sec", []byte("abcdef"), JOB_LOW, nil)
+	handle, err := client.Do("Delay5sec", []byte("abcdef"), JobLow, nil)
 	if err != nil {
 		t.Error(err)
 		return

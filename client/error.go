@@ -7,24 +7,16 @@ import (
 )
 
 var (
-	ErrJobTimeOut    = errors.New("Do a job time out")
-	ErrInvalidData   = errors.New("Invalid data")
 	ErrWorkWarning   = errors.New("Work warning")
+	ErrInvalidData   = errors.New("Invalid data")
 	ErrWorkFail      = errors.New("Work fail")
 	ErrWorkException = errors.New("Work exeption")
 	ErrDataType      = errors.New("Invalid data type")
-	ErrOutOfCap      = errors.New("Out of the capability")
-	ErrNotConn       = errors.New("Did not connect to job server")
-	ErrFuncNotFound  = errors.New("The function was not found")
-	ErrConnection    = errors.New("Connection error")
-	ErrNoActiveAgent = errors.New("No active agent")
-	ErrTimeOut       = errors.New("Executing time out")
-	ErrUnknown       = errors.New("Unknown error")
-	ErrConnClosed    = errors.New("Connection closed")
+	ErrLostConn      = errors.New("Lost connection with Gearmand")
 )
 
 // Extract the error message
-func GetError(data []byte) (err error) {
+func getError(data []byte) (err error) {
 	rel := bytes.SplitN(data, []byte{'\x00'}, 2)
 	if len(rel) != 2 {
 		err = fmt.Errorf("Not a error data: %V", data)

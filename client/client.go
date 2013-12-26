@@ -1,66 +1,47 @@
+// The client package helps developers connect to Gearmand, send
+// jobs and fetch result.
 package client
 
 import (
 	"io"
 	"net"
 	"sync"
-	//	"fmt"
 )
 
-/*
-The client side api for gearman
-
-usage:
-c := client.New("tcp4", "127.0.0.1:4730")
-handle := c.Do("foobar", []byte("data here"), JOB_LOW | JOB_BG)
-
-*/
+// One client connect to one server.
+// Use Pool for multi-connections.
 type Client struct {
 	sync.Mutex
 
 	net, addr, lastcall string
 	respHandler         map[string]ResponseHandler
 	innerHandler        map[string]ResponseHandler
-	in                  chan []byte
+	in                  chan *Response
 	isConn              bool
 	conn                net.Conn
 
 	ErrorHandler ErrorHandler
 }
 
-// Create a new client.
-// Connect to "addr" through "network"
-// Eg.
-//      client, err := client.New("127.0.0.1:4730")
-func New(net, addr string) (client *Client, err error) {
+// Return a client.
+func New(network, addr string) (client *Client, err error) {
 	client = &Client{
-		net:          net,
+		net:          network,
 		addr:         addr,
-		respHandler:  make(map[string]ResponseHandler, QUEUE_SIZE),
-		innerHandler: make(map[string]ResponseHandler, QUEUE_SIZE),
-		in:           make(chan []byte, QUEUE_SIZE),
+		respHandler:  make(map[string]ResponseHandler, queueSize),
+		innerHandler: make(map[string]ResponseHandler, queueSize),
+		in:           make(chan *Response, queueSize),
 	}
-	if err = client.connect(); err != nil {
-		return
-	}
-	go client.readLoop()
-	go client.processLoop()
-	return
-}
-
-// {{{ private functions
-
-//
-func (client *Client) connect() (err error) {
 	client.conn, err = net.Dial(client.net, client.addr)
 	if err != nil {
 		return
 	}
 	client.isConn = true
+	go client.readLoop()
+	go client.processLoop()
 	return
 }
 
-// Internal write
 func (client *Client) write(req *request) (err error) {
 	var n int
 	buf := req.Encode()
@@ -73,61 +54,52 @@ func (client *Client) write(req *request) (err error) {
 	return
 }
 
-// read length bytes from the socket
 func (client *Client) read(length int) (data []byte, err error) {
 	n := 0
-	buf := getBuffer(BUFFER_SIZE)
+	buf := getBuffer(bufferSize)
 	// read until data can be unpacked
-	for i := length; i > 0 || len(data) < MIN_PACKET_LEN; i -= n {
+	for i := length; i > 0 || len(data) < minPacketLength; i -= n {
 		if n, err = client.conn.Read(buf); err != nil {
-			if !client.isConn {
-				err = ErrConnClosed
-				return
-			}
-			if err == io.EOF && n == 0 {
-				if data == nil {
-					err = ErrConnection
-				}
+			if err == io.EOF {
+				err = ErrLostConn
 			}
 			return
 		}
 		data = append(data, buf[0:n]...)
-		if n < BUFFER_SIZE {
+		if n < bufferSize {
 			break
 		}
 	}
 	return
 }
 
-// read data from socket
 func (client *Client) readLoop() {
-	var data []byte
+	defer close(client.in)
+	var data, leftdata []byte
 	var err error
-	for client.isConn {
-		if data, err = client.read(BUFFER_SIZE); err != nil {
-			if err == ErrConnClosed {
+	var resp *Response
+	for {
+		if data, err = client.read(bufferSize); err != nil {
+			client.err(err)
+			if err == ErrLostConn {
 				break
 			}
-			client.err(err)
+			// If it is unexpected error and the connection wasn't
+			// closed by Gearmand, the client should close the conection
+			// and reconnect to job server.
+			client.Close()
+			client.conn, err = net.Dial(client.net, client.addr)
+			if err != nil {
+				client.err(err)
+				break
+			}
 			continue
 		}
-		client.in <- data
-	}
-	close(client.in)
-}
-
-// decode data & process it
-func (client *Client) processLoop() {
-	var resp *Response
-	var l int
-	var err error
-	var data, leftdata []byte
-	for data = range client.in {
 		if len(leftdata) > 0 { // some data left for processing
 			data = append(leftdata, data...)
 		}
-		l = len(data)
-		if l < MIN_PACKET_LEN { // not enough data
+		l := len(data)
+		if l < minPacketLength { // not enough data
 			leftdata = data
 			continue
 		}
@@ -135,41 +107,43 @@ func (client *Client) processLoop() {
 			client.err(err)
 			continue
 		}
+		client.in <- resp
 		leftdata = nil
-		for resp != nil {
-			switch resp.DataType {
-			case ERROR:
-				if client.lastcall != "" {
-					resp = client.handleInner(client.lastcall, resp)
-					client.lastcall = ""
-				} else {
-					client.err(GetError(resp.Data))
-				}
-			case STATUS_RES:
-				resp = client.handleInner("s"+resp.Handle, resp)
-			case JOB_CREATED:
-				resp = client.handleInner("c", resp)
-			case ECHO_RES:
-				resp = client.handleInner("e", resp)
-			case WORK_DATA, WORK_WARNING, WORK_STATUS, WORK_COMPLETE,
-				WORK_FAIL, WORK_EXCEPTION:
-				resp = client.handleResponse(resp.Handle, resp)
-			}
-		}
 		if len(data) > l {
 			leftdata = data[l:]
 		}
 	}
 }
 
-// error handler
+func (client *Client) processLoop() {
+	for resp := range client.in {
+		switch resp.DataType {
+		case dtError:
+			if client.lastcall != "" {
+				resp = client.handleInner(client.lastcall, resp)
+				client.lastcall = ""
+			} else {
+				client.err(getError(resp.Data))
+			}
+		case dtStatusRes:
+			resp = client.handleInner("s"+resp.Handle, resp)
+		case dtJobCreated:
+			resp = client.handleInner("c", resp)
+		case dtEchoRes:
+			resp = client.handleInner("e", resp)
+		case dtWorkData, dtWorkWarning, dtWorkStatus, dtWorkComplete,
+			dtWorkFail, dtWorkException:
+			resp = client.handleResponse(resp.Handle, resp)
+		}
+	}
+}
+
 func (client *Client) err(e error) {
 	if client.ErrorHandler != nil {
 		client.ErrorHandler(e)
 	}
 }
 
-// job handler
 func (client *Client) handleResponse(key string, resp *Response) *Response {
 	if h, ok := client.respHandler[key]; ok {
 		h(resp)
@@ -179,7 +153,6 @@ func (client *Client) handleResponse(key string, resp *Response) *Response {
 	return resp
 }
 
-// job handler
 func (client *Client) handleInner(key string, resp *Response) *Response {
 	if h, ok := client.innerHandler[key]; ok {
 		h(resp)
@@ -189,15 +162,14 @@ func (client *Client) handleInner(key string, resp *Response) *Response {
 	return resp
 }
 
-// Internal do
 func (client *Client) do(funcname string, data []byte,
 	flag uint32) (handle string, err error) {
 	var mutex sync.Mutex
 	mutex.Lock()
 	client.lastcall = "c"
 	client.innerHandler["c"] = func(resp *Response) {
-		if resp.DataType == ERROR {
-			err = GetError(resp.Data)
+		if resp.DataType == dtError {
+			err = getError(resp.Data)
 			return
 		}
 		handle = resp.Handle
@@ -211,22 +183,18 @@ func (client *Client) do(funcname string, data []byte,
 	return
 }
 
-// }}}
-
-// Do the function.
-// funcname is a string with function name.
-// data is encoding to byte array.
-// flag set the job type, include running level: JOB_LOW, JOB_NORMAL, JOB_HIGH
+// Call the function and get a response.
+// flag can be set to: JobLow, JobNormal and JobHigh
 func (client *Client) Do(funcname string, data []byte,
 	flag byte, h ResponseHandler) (handle string, err error) {
 	var datatype uint32
 	switch flag {
-	case JOB_LOW:
-		datatype = SUBMIT_JOB_LOW
-	case JOB_HIGH:
-		datatype = SUBMIT_JOB_HIGH
+	case JobLow:
+		datatype = dtSubmitJobLow
+	case JobHigh:
+		datatype = dtSubmitJobHigh
 	default:
-		datatype = SUBMIT_JOB
+		datatype = dtSubmitJob
 	}
 	handle, err = client.do(funcname, data, datatype)
 	if h != nil {
@@ -235,27 +203,24 @@ func (client *Client) Do(funcname string, data []byte,
 	return
 }
 
-// Do the function at background.
-// funcname is a string with function name.
-// data is encoding to byte array.
-// flag set the job type, include running level: JOB_LOW, JOB_NORMAL, JOB_HIGH
+// Call the function in background, no response needed.
+// flag can be set to: JobLow, JobNormal and JobHigh
 func (client *Client) DoBg(funcname string, data []byte,
 	flag byte) (handle string, err error) {
 	var datatype uint32
 	switch flag {
-	case JOB_LOW:
-		datatype = SUBMIT_JOB_LOW_BG
-	case JOB_HIGH:
-		datatype = SUBMIT_JOB_HIGH_BG
+	case JobLow:
+		datatype = dtSubmitJobLowBg
+	case JobHigh:
+		datatype = dtSubmitJobHighBg
 	default:
-		datatype = SUBMIT_JOB_BG
+		datatype = dtSubmitJobBg
 	}
 	handle, err = client.do(funcname, data, datatype)
 	return
 }
 
 // Get job status from job server.
-// !!!Not fully tested.!!!
 func (client *Client) Status(handle string) (status *Status, err error) {
 	var mutex sync.Mutex
 	mutex.Lock()
@@ -269,14 +234,14 @@ func (client *Client) Status(handle string) (status *Status, err error) {
 		mutex.Unlock()
 	}
 	req := getRequest()
-	req.DataType = GET_STATUS
+	req.DataType = dtGetStatus
 	req.Data = []byte(handle)
 	client.write(req)
 	mutex.Lock()
 	return
 }
 
-// Send a something out, get the samething back.
+// Echo.
 func (client *Client) Echo(data []byte) (echo []byte, err error) {
 	var mutex sync.Mutex
 	mutex.Lock()
@@ -285,7 +250,7 @@ func (client *Client) Echo(data []byte) (echo []byte, err error) {
 		mutex.Unlock()
 	}
 	req := getRequest()
-	req.DataType = ECHO_REQ
+	req.DataType = dtEchoReq
 	req.Data = data
 	client.lastcall = "e"
 	client.write(req)
@@ -293,8 +258,13 @@ func (client *Client) Echo(data []byte) (echo []byte, err error) {
 	return
 }
 
-// Close
+// Close connection
 func (client *Client) Close() (err error) {
-	client.isConn = false
-	return client.conn.Close()
+	client.Lock()
+	defer client.Unlock()
+	if client.conn != nil {
+		err = client.conn.Close()
+		client.conn = nil
+	}
+	return
 }

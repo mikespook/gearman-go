@@ -13,7 +13,7 @@ func main() {
 	// by implementing IdGenerator interface.
 	// client.IdGen = client.NewAutoIncId()
 
-	c, err := client.New("tcp4", "127.0.0.1:4730")
+	c, err := client.New(client.Network, "127.0.0.1:4730")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -29,11 +29,11 @@ func main() {
 	}
 	log.Println(string(echomsg))
 	wg.Done()
-	jobHandler := func(job *client.Job) {
-		log.Printf("%s", job.Data)
+	jobHandler := func(resp *client.Response) {
+		log.Printf("%s", resp.Data)
 		wg.Done()
 	}
-	handle, err := c.Do("ToUpper", echo, client.JOB_NORMAL, jobHandler)
+	handle, err := c.Do("ToUpper", echo, client.JobNormal, jobHandler)
 	if err != nil {
 		log.Fatalln(err)
 	}

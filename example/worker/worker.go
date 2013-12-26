@@ -29,7 +29,7 @@ func main() {
 	defer w.Close()
 	w.ErrorHandler = func(e error) {
 		log.Println(e)
-		if e == worker.ErrConnection {
+		if e == worker.ErrLostConn {
 			proc, err := os.FindProcess(os.Getpid())
 			if err != nil {
 				log.Println(err)

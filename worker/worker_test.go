@@ -20,7 +20,7 @@ func TestWorkerErrNoneAgents(t *testing.T) {
 
 func TestWorkerAddServer(t *testing.T) {
 	t.Log("Add local server 127.0.0.1:4730.")
-	if err := worker.AddServer("tcp4", "127.0.0.1:4730"); err != nil {
+	if err := worker.AddServer(Network, "127.0.0.1:4730"); err != nil {
 		t.Error(err)
 	}
 

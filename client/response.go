@@ -24,14 +24,14 @@ type Response struct {
 // after calling this method, the Response.Handle will be filled
 func (resp *Response) Result() (data []byte, err error) {
 	switch resp.DataType {
-	case WORK_FAIL:
+	case dtWorkFail:
 		resp.Handle = string(resp.Data)
 		err = ErrWorkFail
 		return
-	case WORK_EXCEPTION:
+	case dtWorkException:
 		err = ErrWorkException
 		fallthrough
-	case WORK_COMPLETE:
+	case dtWorkComplete:
 		s := bytes.SplitN(resp.Data, []byte{'\x00'}, 2)
 		if len(s) != 2 {
 			err = fmt.Errorf("Invalid data: %V", resp.Data)
@@ -47,8 +47,8 @@ func (resp *Response) Result() (data []byte, err error) {
 
 // Extract the job's update
 func (resp *Response) Update() (data []byte, err error) {
-	if resp.DataType != WORK_DATA &&
-		resp.DataType != WORK_WARNING {
+	if resp.DataType != dtWorkData &&
+		resp.DataType != dtWorkWarning {
 		err = ErrDataType
 		return
 	}
@@ -57,7 +57,7 @@ func (resp *Response) Update() (data []byte, err error) {
 		err = ErrInvalidData
 		return
 	}
-	if resp.DataType == WORK_WARNING {
+	if resp.DataType == dtWorkWarning {
 		err = ErrWorkWarning
 	}
 	resp.Handle = string(s[0])
@@ -67,12 +67,12 @@ func (resp *Response) Update() (data []byte, err error) {
 
 // Decode a job from byte slice
 func decodeResponse(data []byte) (resp *Response, l int, err error) {
-	if len(data) < MIN_PACKET_LEN { // valid package should not less 12 bytes
+	if len(data) < minPacketLength { // valid package should not less 12 bytes
 		err = fmt.Errorf("Invalid data: %V", data)
 		return
 	}
 	dl := int(binary.BigEndian.Uint32(data[8:12]))
-	dt := data[MIN_PACKET_LEN : dl+MIN_PACKET_LEN]
+	dt := data[minPacketLength : dl+minPacketLength]
 	if len(dt) != int(dl) { // length not equal
 		err = fmt.Errorf("Invalid data: %V", data)
 		return
@@ -80,10 +80,10 @@ func decodeResponse(data []byte) (resp *Response, l int, err error) {
 	resp = getResponse()
 	resp.DataType = binary.BigEndian.Uint32(data[4:8])
 	switch resp.DataType {
-	case JOB_CREATED:
+	case dtJobCreated:
 		resp.Handle = string(dt)
-	case STATUS_RES, WORK_DATA, WORK_WARNING, WORK_STATUS,
-		WORK_COMPLETE, WORK_FAIL, WORK_EXCEPTION:
+	case dtStatusRes, dtWorkData, dtWorkWarning, dtWorkStatus,
+		dtWorkComplete, dtWorkFail, dtWorkException:
 		s := bytes.SplitN(dt, []byte{'\x00'}, 2)
 		if len(s) >= 2 {
 			resp.Handle = string(s[0])
@@ -92,12 +92,12 @@ func decodeResponse(data []byte) (resp *Response, l int, err error) {
 			err = fmt.Errorf("Invalid data: %V", data)
 			return
 		}
-	case ECHO_RES:
+	case dtEchoRes:
 		fallthrough
 	default:
 		resp.Data = dt
 	}
-	l = dl + MIN_PACKET_LEN
+	l = dl + minPacketLength
 	return
 }
 

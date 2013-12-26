@@ -12,13 +12,13 @@ type request struct {
 
 // Encode a Request to byte slice
 func (req *request) Encode() (data []byte) {
-	l := len(req.Data)       // length of data
-	tl := l + MIN_PACKET_LEN // add 12 bytes head
+	l := len(req.Data)        // length of data
+	tl := l + minPacketLength // add 12 bytes head
 	data = getBuffer(tl)
-	copy(data[:4], REQ_STR)
+	copy(data[:4], reqStr)
 	binary.BigEndian.PutUint32(data[4:8], req.DataType)
 	binary.BigEndian.PutUint32(data[8:12], uint32(l))
-	copy(data[MIN_PACKET_LEN:], req.Data)
+	copy(data[minPacketLength:], req.Data)
 	return
 }
 

@@ -7,11 +7,13 @@ import (
 )
 
 const (
-	PoolSize = 10
+	poolSize = 10
 )
 
 var (
 	ErrNotFound = errors.New("Server Not Found")
+	SelectWithRate = selectWithRate
+	SelectRandom = selectRandom
 )
 
 type poolClient struct {
@@ -21,7 +23,7 @@ type poolClient struct {
 
 type SelectionHandler func(map[string]*poolClient, string) string
 
-func SelectWithRate(pool map[string]*poolClient,
+func selectWithRate(pool map[string]*poolClient,
 	last string) (addr string) {
 	total := 0
 	for _, item := range pool {
@@ -33,7 +35,7 @@ func SelectWithRate(pool map[string]*poolClient,
 	return last
 }
 
-func SelectRandom(pool map[string]*poolClient,
+func selectRandom(pool map[string]*poolClient,
 	last string) (addr string) {
 	r := rand.Intn(len(pool))
 	i := 0
@@ -56,10 +58,10 @@ type Pool struct {
 	mutex sync.Mutex
 }
 
-// Create a new pool.
+// Return a new pool.
 func NewPool() (pool *Pool) {
 	return &Pool{
-		clients:          make(map[string]*poolClient, PoolSize),
+		clients:          make(map[string]*poolClient, poolSize),
 		SelectionHandler: SelectWithRate,
 	}
 }

@@ -49,8 +49,9 @@ func (a *agent) work() {
 				break
 			}
 			// If it is unexpected error and the connection wasn't
-			// closed by Gearmand, the agent should colse the conection
+			// closed by Gearmand, the agent should close the conection
 			// and reconnect to job server.
+			a.Close()
 			a.conn, err = net.Dial(a.net, a.addr)
 			if err != nil {
 				a.worker.err(err)
