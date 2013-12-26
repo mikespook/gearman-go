@@ -11,7 +11,7 @@ func ExampleWorker() {
 	w := worker.New(worker.Unlimited)
 	defer w.Close()
 	// Add a gearman job server
-	if err := w.AddServer("tcp4", "127.0.0.1:4730"); err != nil {
+	if err := w.AddServer(worker.NETWORK, "127.0.0.1:4730"); err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -26,7 +26,7 @@ func ExampleWorker() {
 		return
 	}
 	var wg sync.WaitGroup
-	// A custome handler, for handling other results, eg. ECHO, ERROR.
+	// A custome handler, for handling other results, eg. ECHO, dtError.
 	w.JobHandler = func(job worker.Job) error {
 		if job.Err() == nil {
 			fmt.Println(string(job.Data()))

@@ -7,19 +7,19 @@ import (
 
 var (
 	inpackcases = map[uint32]map[string]string{
-		NOOP: map[string]string{
+		noop: map[string]string{
 			"src": "\x00RES\x00\x00\x00\x06\x00\x00\x00\x00",
 		},
-		NO_JOB: map[string]string{
+		noJob: map[string]string{
 			"src": "\x00RES\x00\x00\x00\x0a\x00\x00\x00\x00",
 		},
-		JOB_ASSIGN: map[string]string{
+		jobAssign: map[string]string{
 			"src":    "\x00RES\x00\x00\x00\x0b\x00\x00\x00\x07a\x00b\x00xyz",
 			"handle": "a",
 			"fn":     "b",
 			"data":   "xyz",
 		},
-		JOB_ASSIGN_UNIQ: map[string]string{
+		jobAssign_UNIQ: map[string]string{
 			"src":    "\x00RES\x00\x00\x00\x1F\x00\x00\x00\x09a\x00b\x00c\x00xyz",
 			"handle": "a",
 			"fn":     "b",

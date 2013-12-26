@@ -21,7 +21,7 @@ func newAgent(net, addr string, worker *Worker) (a *agent, err error) {
 		net:    net,
 		addr:   addr,
 		worker: worker,
-		in:     make(chan []byte, QUEUE_SIZE),
+		in:     make(chan []byte, queueSize),
 	}
 	return
 }
@@ -43,7 +43,7 @@ func (a *agent) work() {
 	var err error
 	var data, leftdata []byte
 	for {
-		if data, err = a.read(BUFFER_SIZE); err != nil {
+		if data, err = a.read(bufferSize); err != nil {
 			a.worker.err(err)
 			if err == ErrLostConn {
 				break
@@ -60,7 +60,7 @@ func (a *agent) work() {
 		if len(leftdata) > 0 { // some data left for processing
 			data = append(leftdata, data...)
 		}
-		if len(data) < MIN_PACKET_LEN { // not enough data
+		if len(data) < minPacketLength { // not enough data
 			leftdata = data
 			continue
 		}
@@ -90,7 +90,7 @@ func (a *agent) Grab() {
 	a.Lock()
 	defer a.Unlock()
 	outpack := getOutPack()
-	outpack.dataType = GRAB_JOB_UNIQ
+	outpack.dataType = dtGrabJobUniq
 	a.write(outpack)
 }
 
@@ -98,16 +98,16 @@ func (a *agent) PreSleep() {
 	a.Lock()
 	defer a.Unlock()
 	outpack := getOutPack()
-	outpack.dataType = PRE_SLEEP
+	outpack.dataType = dtPreSleep
 	a.write(outpack)
 }
 
 // read length bytes from the socket
 func (a *agent) read(length int) (data []byte, err error) {
 	n := 0
-	buf := getBuffer(BUFFER_SIZE)
+	buf := getBuffer(bufferSize)
 	// read until data can be unpacked
-	for i := length; i > 0 || len(data) < MIN_PACKET_LEN; i -= n {
+	for i := length; i > 0 || len(data) < minPacketLength; i -= n {
 		if n, err = a.conn.Read(buf); err != nil {
 			if err == io.EOF {
 				err = ErrLostConn
@@ -115,7 +115,7 @@ func (a *agent) read(length int) (data []byte, err error) {
 			return
 		}
 		data = append(data, buf[0:n]...)
-		if n < BUFFER_SIZE {
+		if n < bufferSize {
 			break
 		}
 	}

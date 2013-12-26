@@ -7,22 +7,22 @@ import (
 
 var (
 	outpackcases = map[uint32]map[string]string{
-		CAN_DO: map[string]string{
+		canDo: map[string]string{
 			"src":  "\x00REQ\x00\x00\x00\x01\x00\x00\x00\x01a",
 			"data": "a",
 		},
-		CAN_DO_TIMEOUT: map[string]string{
+		canDo_TIMEOUT: map[string]string{
 			"src":  "\x00REQ\x00\x00\x00\x17\x00\x00\x00\x06a\x00\x00\x00\x00\x01",
 			"data": "a\x00\x00\x00\x00\x01",
 		},
-		CANT_DO: map[string]string{
+		cantDo: map[string]string{
 			"src":  "\x00REQ\x00\x00\x00\x02\x00\x00\x00\x01a",
 			"data": "a",
 		},
-		RESET_ABILITIES: map[string]string{
+		resetAbilities: map[string]string{
 			"src": "\x00REQ\x00\x00\x00\x03\x00\x00\x00\x00",
 		},
-		PRE_SLEEP: map[string]string{
+		preSleep: map[string]string{
 			"src": "\x00REQ\x00\x00\x00\x04\x00\x00\x00\x00",
 		},
 		GRAB_JOB: map[string]string{
@@ -39,15 +39,15 @@ var (
 			"src":  "\x00REQ\x00\x00\x00\x1D\x00\x00\x00\x03a\x00b",
 			"data": "a\x00b",
 		},
-		WORK_STATUS: map[string]string{
+		workStatus: map[string]string{
 			"src":  "\x00REQ\x00\x00\x00\x0C\x00\x00\x00\x08a\x0050\x00100",
 			"data": "a\x0050\x00100",
 		},
-		WORK_COMPLETE: map[string]string{
+		workComplete: map[string]string{
 			"src":  "\x00REQ\x00\x00\x00\x0D\x00\x00\x00\x03a\x00b",
 			"data": "a\x00b",
 		},
-		WORK_FAIL: map[string]string{
+		workFail: map[string]string{
 			"src":    "\x00REQ\x00\x00\x00\x0E\x00\x00\x00\x01a",
 			"handle": "a",
 		},
@@ -55,7 +55,7 @@ var (
 			"src":  "\x00REQ\x00\x00\x00\x19\x00\x00\x00\x03a\x00b",
 			"data": "a\x00b",
 		},
-		SET_CLIENT_ID: map[string]string{
+		dtSetClientId: map[string]string{
 			"src":  "\x00REQ\x00\x00\x00\x16\x00\x00\x00\x01a",
 			"data": "a",
 		},

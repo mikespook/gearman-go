@@ -25,8 +25,8 @@ func (inpack *inPack) Data() []byte {
 }
 
 func (inpack *inPack) Err() error {
-	if inpack.dataType == ERROR {
-		return GetError(inpack.data)
+	if inpack.dataType == dtError {
+		return getError(inpack.data)
 	}
 	return nil
 }
@@ -35,7 +35,7 @@ func (inpack *inPack) Err() error {
 // Using this in a job's executing.
 func (inpack *inPack) SendData(data []byte) {
 	outpack := getOutPack()
-	outpack.dataType = WORK_DATA
+	outpack.dataType = dtWorkData
 	hl := len(inpack.handle)
 	l := hl + len(data) + 1
 	outpack.data = getBuffer(l)
@@ -46,7 +46,7 @@ func (inpack *inPack) SendData(data []byte) {
 
 func (inpack *inPack) SendWarning(data []byte) {
 	outpack := getOutPack()
-	outpack.dataType = WORK_WARNING
+	outpack.dataType = dtWorkWarning
 	hl := len(inpack.handle)
 	l := hl + len(data) + 1
 	outpack.data = getBuffer(l)
@@ -61,7 +61,7 @@ func (inpack *inPack) UpdateStatus(numerator, denominator int) {
 	n := []byte(strconv.Itoa(numerator))
 	d := []byte(strconv.Itoa(denominator))
 	outpack := getOutPack()
-	outpack.dataType = WORK_STATUS
+	outpack.dataType = dtWorkStatus
 	hl := len(inpack.handle)
 	nl := len(n)
 	dl := len(d)
@@ -74,12 +74,12 @@ func (inpack *inPack) UpdateStatus(numerator, denominator int) {
 
 // Decode job from byte slice
 func decodeInPack(data []byte) (inpack *inPack, l int, err error) {
-	if len(data) < MIN_PACKET_LEN { // valid package should not less 12 bytes
+	if len(data) < minPacketLength { // valid package should not less 12 bytes
 		err = fmt.Errorf("Invalid data: %V", data)
 		return
 	}
 	dl := int(binary.BigEndian.Uint32(data[8:12]))
-	dt := data[MIN_PACKET_LEN : dl+MIN_PACKET_LEN]
+	dt := data[minPacketLength : dl+minPacketLength]
 	if len(dt) != int(dl) { // length not equal
 		err = fmt.Errorf("Invalid data: %V", data)
 		return
@@ -87,14 +87,14 @@ func decodeInPack(data []byte) (inpack *inPack, l int, err error) {
 	inpack = getInPack()
 	inpack.dataType = binary.BigEndian.Uint32(data[4:8])
 	switch inpack.dataType {
-	case JOB_ASSIGN:
+	case dtJobAssign:
 		s := bytes.SplitN(dt, []byte{'\x00'}, 3)
 		if len(s) == 3 {
 			inpack.handle = string(s[0])
 			inpack.fn = string(s[1])
 			inpack.data = s[2]
 		}
-	case JOB_ASSIGN_UNIQ:
+	case dtJobAssignUniq:
 		s := bytes.SplitN(dt, []byte{'\x00'}, 4)
 		if len(s) == 4 {
 			inpack.handle = string(s[0])
@@ -105,6 +105,6 @@ func decodeInPack(data []byte) (inpack *inPack, l int, err error) {
 	default:
 		inpack.data = dt
 	}
-	l = dl + MIN_PACKET_LEN
+	l = dl + minPacketLength
 	return
 }

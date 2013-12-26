@@ -15,7 +15,7 @@ var (
 )
 
 // Extract the error message
-func GetError(data []byte) (err error) {
+func getError(data []byte) (err error) {
 	rel := bytes.SplitN(data, []byte{'\x00'}, 2)
 	if len(rel) != 2 {
 		err = fmt.Errorf("Not a error data: %V", data)

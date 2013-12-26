@@ -17,7 +17,7 @@ type jobFunc struct {
 }
 
 // Map for added function.
-type JobFuncs map[string]*jobFunc
+type jobFuncs map[string]*jobFunc
 
 type systemInfo struct {
 	GOOS, GOARCH, GOROOT, Version string

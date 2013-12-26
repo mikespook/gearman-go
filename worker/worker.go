@@ -21,7 +21,7 @@ const (
 type Worker struct {
 	sync.Mutex
 	agents  []*agent
-	funcs   JobFuncs
+	funcs   jobFuncs
 	in      chan *inPack
 	running bool
 
@@ -41,8 +41,8 @@ type Worker struct {
 func New(limit int) (worker *Worker) {
 	worker = &Worker{
 		agents: make([]*agent, 0, limit),
-		funcs:  make(JobFuncs),
-		in:     make(chan *inPack, QUEUE_SIZE),
+		funcs:  make(jobFuncs),
+		in:     make(chan *inPack, queueSize),
 	}
 	if limit != Unlimited {
 		worker.limit = make(chan bool, limit-1)
@@ -97,10 +97,10 @@ func (worker *Worker) AddFunc(funcname string,
 func (worker *Worker) addFunc(funcname string, timeout uint32) {
 	outpack := getOutPack()
 	if timeout == 0 {
-		outpack.dataType = CAN_DO
+		outpack.dataType = dtCanDo
 		outpack.data = []byte(funcname)
 	} else {
-		outpack.dataType = CAN_DO_TIMEOUT
+		outpack.dataType = dtCanDoTimeout
 		l := len(funcname)
 		outpack.data = getBuffer(l + 5)
 		copy(outpack.data, []byte(funcname))
@@ -127,7 +127,7 @@ func (worker *Worker) RemoveFunc(funcname string) (err error) {
 // inner remove
 func (worker *Worker) removeFunc(funcname string) {
 	outpack := getOutPack()
-	outpack.dataType = CANT_DO
+	outpack.dataType = dtCantDo
 	outpack.data = []byte(funcname)
 	worker.broadcast(outpack)
 }
@@ -135,11 +135,11 @@ func (worker *Worker) removeFunc(funcname string) {
 // inner package handling
 func (worker *Worker) handleInPack(inpack *inPack) {
 	switch inpack.dataType {
-	case NO_JOB:
+	case dtNoJob:
 		inpack.a.PreSleep()
-	case NOOP:
+	case dtNoop:
 		inpack.a.Grab()
-	case JOB_ASSIGN, JOB_ASSIGN_UNIQ:
+	case dtJobAssign, dtJobAssignUniq:
 		go func() {
 			if err := worker.exec(inpack); err != nil {
 				worker.err(err)
@@ -149,10 +149,10 @@ func (worker *Worker) handleInPack(inpack *inPack) {
 			worker.limit <- true
 		}
 		inpack.a.Grab()
-	case ERROR:
+	case dtError:
 		worker.err(inpack.Err())
 		fallthrough
-	case ECHO_RES:
+	case dtEchoRes:
 		fallthrough
 	default:
 		worker.customeHandler(inpack)
@@ -219,7 +219,7 @@ func (worker *Worker) Close() {
 // Echo
 func (worker *Worker) Echo(data []byte) {
 	outpack := getOutPack()
-	outpack.dataType = ECHO_REQ
+	outpack.dataType = dtEchoReq
 	outpack.data = data
 	worker.broadcast(outpack)
 }
@@ -228,16 +228,16 @@ func (worker *Worker) Echo(data []byte) {
 // Both from the worker and job servers.
 func (worker *Worker) Reset() {
 	outpack := getOutPack()
-	outpack.dataType = RESET_ABILITIES
+	outpack.dataType = dtResetAbilities
 	worker.broadcast(outpack)
-	worker.funcs = make(JobFuncs)
+	worker.funcs = make(jobFuncs)
 }
 
 // Set the worker's unique id.
 func (worker *Worker) SetId(id string) {
 	worker.Id = id
 	outpack := getOutPack()
-	outpack.dataType = SET_CLIENT_ID
+	outpack.dataType = dtSetClientId
 	outpack.data = []byte(id)
 	worker.broadcast(outpack)
 }
@@ -270,12 +270,12 @@ func (worker *Worker) exec(inpack *inPack) (err error) {
 	if worker.running {
 		outpack := getOutPack()
 		if r.err == nil {
-			outpack.dataType = WORK_COMPLETE
+			outpack.dataType = dtWorkComplete
 		} else {
 			if len(r.data) == 0 {
-				outpack.dataType = WORK_FAIL
+				outpack.dataType = dtWorkFail
 			} else {
-				outpack.dataType = WORK_EXCEPTION
+				outpack.dataType = dtWorkException
 			}
 			err = r.err
 		}
