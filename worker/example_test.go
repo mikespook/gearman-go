@@ -11,7 +11,7 @@ func ExampleWorker() {
 	w := worker.New(worker.Unlimited)
 	defer w.Close()
 	// Add a gearman job server
-	if err := w.AddServer(worker.NETWORK, "127.0.0.1:4730"); err != nil {
+	if err := w.AddServer(worker.Network, "127.0.0.1:4730"); err != nil {
 		fmt.Println(err)
 		return
 	}

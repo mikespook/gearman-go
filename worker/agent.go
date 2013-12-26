@@ -3,6 +3,7 @@ package worker
 import (
 	"io"
 	"net"
+	"strings"
 	"sync"
 )
 
@@ -44,10 +45,10 @@ func (a *agent) work() {
 	var data, leftdata []byte
 	for {
 		if data, err = a.read(bufferSize); err != nil {
-			a.worker.err(err)
 			if err == ErrLostConn {
 				break
 			}
+			a.worker.err(err)
 			// If it is unexpected error and the connection wasn't
 			// closed by Gearmand, the agent should close the conection
 			// and reconnect to job server.
@@ -103,6 +104,16 @@ func (a *agent) PreSleep() {
 	a.write(outpack)
 }
 
+func isClosed(err error) bool {
+	switch {
+	case err == io.EOF:
+		fallthrough
+	case strings.Contains(err.Error(), "use of closed network connection"):
+		return true
+	}
+	return false
+}
+
 // read length bytes from the socket
 func (a *agent) read(length int) (data []byte, err error) {
 	n := 0
@@ -110,7 +121,7 @@ func (a *agent) read(length int) (data []byte, err error) {
 	// read until data can be unpacked
 	for i := length; i > 0 || len(data) < minPacketLength; i -= n {
 		if n, err = a.conn.Read(buf); err != nil {
-			if err == io.EOF {
+			if isClosed(err) {
 				err = ErrLostConn
 			}
 			return

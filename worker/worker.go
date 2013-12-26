@@ -168,8 +168,8 @@ func (worker *Worker) Ready() (err error) {
 	if len(worker.funcs) == 0 {
 		return ErrNoneFuncs
 	}
-	for _, v := range worker.agents {
-		if err = v.Connect(); err != nil {
+	for _, a := range worker.agents {
+		if err = a.Connect(); err != nil {
 			return
 		}
 	}

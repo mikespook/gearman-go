@@ -7,51 +7,51 @@ import (
 
 var (
 	outpackcases = map[uint32]map[string]string{
-		canDo: map[string]string{
+		dtCanDo: map[string]string{
 			"src":  "\x00REQ\x00\x00\x00\x01\x00\x00\x00\x01a",
 			"data": "a",
 		},
-		canDo_TIMEOUT: map[string]string{
+		dtCanDoTimeout: map[string]string{
 			"src":  "\x00REQ\x00\x00\x00\x17\x00\x00\x00\x06a\x00\x00\x00\x00\x01",
 			"data": "a\x00\x00\x00\x00\x01",
 		},
-		cantDo: map[string]string{
+		dtCantDo: map[string]string{
 			"src":  "\x00REQ\x00\x00\x00\x02\x00\x00\x00\x01a",
 			"data": "a",
 		},
-		resetAbilities: map[string]string{
+		dtResetAbilities: map[string]string{
 			"src": "\x00REQ\x00\x00\x00\x03\x00\x00\x00\x00",
 		},
-		preSleep: map[string]string{
+		dtPreSleep: map[string]string{
 			"src": "\x00REQ\x00\x00\x00\x04\x00\x00\x00\x00",
 		},
-		GRAB_JOB: map[string]string{
+		dtGrabJob: map[string]string{
 			"src": "\x00REQ\x00\x00\x00\x09\x00\x00\x00\x00",
 		},
-		GRAB_JOB_UNIQ: map[string]string{
+		dtGrabJobUniq: map[string]string{
 			"src": "\x00REQ\x00\x00\x00\x1E\x00\x00\x00\x00",
 		},
-		WORK_DATA: map[string]string{
+		dtWorkData: map[string]string{
 			"src":  "\x00REQ\x00\x00\x00\x1C\x00\x00\x00\x03a\x00b",
 			"data": "a\x00b",
 		},
-		WORK_WARNING: map[string]string{
+		dtWorkWarning: map[string]string{
 			"src":  "\x00REQ\x00\x00\x00\x1D\x00\x00\x00\x03a\x00b",
 			"data": "a\x00b",
 		},
-		workStatus: map[string]string{
+		dtWorkStatus: map[string]string{
 			"src":  "\x00REQ\x00\x00\x00\x0C\x00\x00\x00\x08a\x0050\x00100",
 			"data": "a\x0050\x00100",
 		},
-		workComplete: map[string]string{
+		dtWorkComplete: map[string]string{
 			"src":  "\x00REQ\x00\x00\x00\x0D\x00\x00\x00\x03a\x00b",
 			"data": "a\x00b",
 		},
-		workFail: map[string]string{
+		dtWorkFail: map[string]string{
 			"src":    "\x00REQ\x00\x00\x00\x0E\x00\x00\x00\x01a",
 			"handle": "a",
 		},
-		WORK_EXCEPTION: map[string]string{
+		dtWorkException: map[string]string{
 			"src":  "\x00REQ\x00\x00\x00\x19\x00\x00\x00\x03a\x00b",
 			"data": "a\x00b",
 		},
@@ -59,7 +59,7 @@ var (
 			"src":  "\x00REQ\x00\x00\x00\x16\x00\x00\x00\x01a",
 			"data": "a",
 		},
-		ALL_YOURS: map[string]string{
+		dtAllYours: map[string]string{
 			"src": "\x00REQ\x00\x00\x00\x18\x00\x00\x00\x00",
 		},
 	}
