@@ -24,6 +24,13 @@ func (inpack *inPack) Data() []byte {
 	return inpack.data
 }
 
+func (inpack *inPack) Err() error {
+	if inpack.dataType == ERROR {
+		return GetError(inpack.data)
+	}
+	return nil
+}
+
 // Send some datas to client.
 // Using this in a job's executing.
 func (inpack *inPack) SendData(data []byte) {

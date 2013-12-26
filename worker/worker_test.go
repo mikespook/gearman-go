@@ -11,6 +11,13 @@ func init() {
 	worker = New(Unlimited)
 }
 
+func TestWorkerErrNoneAgents(t *testing.T) {
+	err := worker.Ready()
+	if err != ErrNoneAgents {
+		t.Error("ErrNoneAgents expected.")
+	}
+}
+
 func TestWorkerAddServer(t *testing.T) {
 	t.Log("Add local server 127.0.0.1:4730.")
 	if err := worker.AddServer("tcp4", "127.0.0.1:4730"); err != nil {
@@ -20,6 +27,13 @@ func TestWorkerAddServer(t *testing.T) {
 	if l := len(worker.agents); l != 1 {
 		t.Log(worker.agents)
 		t.Error("The length of server list should be 1.")
+	}
+}
+
+func TestWorkerErrNoneFuncs(t *testing.T) {
+	err := worker.Ready()
+	if err != ErrNoneFuncs {
+		t.Error("ErrNoneFuncs expected.")
 	}
 }
 

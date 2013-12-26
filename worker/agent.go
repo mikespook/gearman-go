@@ -3,10 +3,12 @@ package worker
 import (
 	"io"
 	"net"
+	"sync"
 )
 
 // The agent of job server.
 type agent struct {
+	sync.Mutex
 	conn      net.Conn
 	worker    *Worker
 	in        chan []byte
@@ -25,6 +27,8 @@ func newAgent(net, addr string, worker *Worker) (a *agent, err error) {
 }
 
 func (a *agent) Connect() (err error) {
+	a.Lock()
+	defer a.Unlock()
 	a.conn, err = net.Dial(a.net, a.addr)
 	if err != nil {
 		return
@@ -40,11 +44,18 @@ func (a *agent) work() {
 	var data, leftdata []byte
 	for {
 		if data, err = a.read(BUFFER_SIZE); err != nil {
-			if err == ErrConnClosed {
+			a.worker.err(err)
+			if err == ErrLostConn {
 				break
 			}
-			a.worker.err(err)
-			continue
+			// If it is unexpected error and the connection wasn't
+			// closed by Gearmand, the agent should colse the conection
+			// and reconnect to job server.
+			a.conn, err = net.Dial(a.net, a.addr)
+			if err != nil {
+				a.worker.err(err)
+				break
+			}
 		}
 		if len(leftdata) > 0 { // some data left for processing
 			data = append(leftdata, data...)
@@ -67,16 +78,25 @@ func (a *agent) work() {
 }
 
 func (a *agent) Close() {
-	a.conn.Close()
+	a.Lock()
+	defer a.Unlock()
+	if a.conn != nil {
+		a.conn.Close()
+		a.conn = nil
+	}
 }
 
 func (a *agent) Grab() {
+	a.Lock()
+	defer a.Unlock()
 	outpack := getOutPack()
 	outpack.dataType = GRAB_JOB_UNIQ
 	a.write(outpack)
 }
 
 func (a *agent) PreSleep() {
+	a.Lock()
+	defer a.Unlock()
 	outpack := getOutPack()
 	outpack.dataType = PRE_SLEEP
 	a.write(outpack)
@@ -89,12 +109,8 @@ func (a *agent) read(length int) (data []byte, err error) {
 	// read until data can be unpacked
 	for i := length; i > 0 || len(data) < MIN_PACKET_LEN; i -= n {
 		if n, err = a.conn.Read(buf); err != nil {
-			if err == io.EOF && n == 0 {
-				if data == nil {
-					err = ErrConnection
-				} else {
-					err = ErrConnClosed
-				}
+			if err == io.EOF {
+				err = ErrLostConn
 			}
 			return
 		}

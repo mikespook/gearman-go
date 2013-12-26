@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	Unlimited = 0
-	OneByOne  = 1
+	Unlimited = iota
+	OneByOne
 
-	Immediately = 0
+	Immediately = iota
 )
 
 // Worker is the only structure needed by worker side developing.
@@ -139,8 +139,6 @@ func (worker *Worker) handleInPack(inpack *inPack) {
 		inpack.a.PreSleep()
 	case NOOP:
 		inpack.a.Grab()
-	case ERROR:
-		worker.err(GetError(inpack.data))
 	case JOB_ASSIGN, JOB_ASSIGN_UNIQ:
 		go func() {
 			if err := worker.exec(inpack); err != nil {
@@ -151,6 +149,9 @@ func (worker *Worker) handleInPack(inpack *inPack) {
 			worker.limit <- true
 		}
 		inpack.a.Grab()
+	case ERROR:
+		worker.err(inpack.Err())
+		fallthrough
 	case ECHO_RES:
 		fallthrough
 	default:
@@ -161,6 +162,12 @@ func (worker *Worker) handleInPack(inpack *inPack) {
 // Connect to Gearman server and tell every server
 // what can this worker do.
 func (worker *Worker) Ready() (err error) {
+	if len(worker.agents) == 0 {
+		return ErrNoneAgents
+	}
+	if len(worker.funcs) == 0 {
+		return ErrNoneFuncs
+	}
 	for _, v := range worker.agents {
 		if err = v.Connect(); err != nil {
 			return
@@ -201,8 +208,12 @@ func (worker *Worker) customeHandler(inpack *inPack) {
 
 // Close connection and exit main loop
 func (worker *Worker) Close() {
-	worker.running = false
-	close(worker.in)
+	worker.Lock()
+	worker.Unlock()
+	if worker.running == true {
+		worker.running = false
+		close(worker.in)
+	}
 }
 
 // Echo
