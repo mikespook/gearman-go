@@ -39,6 +39,11 @@ func (a *agent) Connect() (err error) {
 }
 
 func (a *agent) work() {
+	defer func() {
+		if err := recover(); err != nil {
+			a.worker.err(err.(error))
+		}
+	}()
 	var inpack *inPack
 	var l int
 	var err error

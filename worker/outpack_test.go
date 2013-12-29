@@ -81,3 +81,19 @@ func TestOutPack(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkEncode(b *testing.B) {
+    for i := 0; i < b.N; i++ {
+		for k, v := range outpackcases {
+			outpack := getOutPack()
+			outpack.dataType = k
+			if handle, ok := v["handle"]; ok {
+				outpack.handle = handle
+			}
+			if data, ok := v["data"]; ok {
+				outpack.data = []byte(data)
+			}
+			outpack.Encode()
+		}
+    }
+}
