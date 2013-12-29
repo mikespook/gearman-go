@@ -1,8 +1,6 @@
 Gearman-Go
 ==========
 
-[![Build Status](https://travis-ci.org/mikespook/gearman-go.png?branch=master)](https://travis-ci.org/mikespook/gearman-go)
-
 This module is a [Gearman](http://gearman.org/) API for the [Go Programming Language](http://golang.org).
 The protocols were written in pure Go. It contains two sub-packages:
 
@@ -15,6 +13,9 @@ The worker package will help developers in developing Gearman worker
 service easily.
 
 	"github.com/mikespook/gearman-go/worker"
+
+[![Build Status](https://travis-ci.org/mikespook/gearman-go.png?branch=master)](https://travis-ci.org/mikespook/gearman-go)
+[![GoDoc](https://godoc.org/github.com/mikespook/gearman-go?status.png)](https://godoc.org/github.com/mikespook/gearman-go)
 
 Install
 =======
