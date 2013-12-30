@@ -6,4 +6,6 @@ type Job interface {
 	SendWarning(data []byte)
 	SendData(data []byte)
 	UpdateStatus(numerator, denominator int)
+	Handle() string
+	UniqueId() string
 }
