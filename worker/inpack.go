@@ -24,6 +24,14 @@ func (inpack *inPack) Data() []byte {
 	return inpack.data
 }
 
+func (inpack *inPack) Handle() string {
+	return inpack.handle
+}
+
+func (inpack *inPack) UniqueId() string {
+	return inpack.uniqueId
+}
+
 func (inpack *inPack) Err() error {
 	if inpack.dataType == dtError {
 		return getError(inpack.data)
