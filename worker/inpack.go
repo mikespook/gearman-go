@@ -24,6 +24,10 @@ func (inpack *inPack) Data() []byte {
 	return inpack.data
 }
 
+func (inpack *inPack) Fn() string {
+	return inpack.fn
+}
+
 func (inpack *inPack) Handle() string {
 	return inpack.handle
 }
