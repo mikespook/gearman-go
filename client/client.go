@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"bufio"
 )
 
 // One client connect to one server.
@@ -19,6 +20,7 @@ type Client struct {
 	in                  chan *Response
 	isConn              bool
 	conn                net.Conn
+	rw					*bufio.ReadWriter
 
 	ErrorHandler ErrorHandler
 }
@@ -36,6 +38,8 @@ func New(network, addr string) (client *Client, err error) {
 	if err != nil {
 		return
 	}
+	client.rw = bufio.NewReadWriter(bufio.NewReader(client.conn),
+		bufio.NewWriter(client.conn))
 	client.isConn = true
 	go client.readLoop()
 	go client.processLoop()
@@ -46,12 +50,12 @@ func (client *Client) write(req *request) (err error) {
 	var n int
 	buf := req.Encode()
 	for i := 0; i < len(buf); i += n {
-		n, err = client.conn.Write(buf[i:])
+		n, err = client.rw.Write(buf[i:])
 		if err != nil {
 			return
 		}
 	}
-	return
+	return client.rw.Flush()
 }
 
 func (client *Client) read(length int) (data []byte, err error) {
@@ -59,7 +63,7 @@ func (client *Client) read(length int) (data []byte, err error) {
 	buf := getBuffer(bufferSize)
 	// read until data can be unpacked
 	for i := length; i > 0 || len(data) < minPacketLength; i -= n {
-		if n, err = client.conn.Read(buf); err != nil {
+		if n, err = client.rw.Read(buf); err != nil {
 			if err == io.EOF {
 				err = ErrLostConn
 			}
@@ -78,6 +82,7 @@ func (client *Client) readLoop() {
 	var data, leftdata []byte
 	var err error
 	var resp *Response
+ReadLoop:
 	for {
 		if data, err = client.read(bufferSize); err != nil {
 			client.err(err)
@@ -93,24 +98,30 @@ func (client *Client) readLoop() {
 				client.err(err)
 				break
 			}
+			client.rw = bufio.NewReadWriter(bufio.NewReader(client.conn),
+				bufio.NewWriter(client.conn))
 			continue
 		}
 		if len(leftdata) > 0 { // some data left for processing
 			data = append(leftdata, data...)
 		}
-		l := len(data)
-		if l < minPacketLength { // not enough data
-			leftdata = data
-			continue
-		}
-		if resp, l, err = decodeResponse(data); err != nil {
-			client.err(err)
-			continue
-		}
-		client.in <- resp
-		leftdata = nil
-		if len(data) > l {
-			leftdata = data[l:]
+		for {
+			l := len(data)
+			if l < minPacketLength { // not enough data
+				leftdata = data
+				continue ReadLoop
+			}
+			if resp, l, err = decodeResponse(data); err != nil {
+				leftdata = data[l:]
+				continue ReadLoop
+			} else {
+				client.in <- resp
+			}
+			data = data[l:]
+			if len(data) > 0 {
+				continue
+			}
+			break
 		}
 	}
 }
@@ -131,9 +142,13 @@ func (client *Client) processLoop() {
 			resp = client.handleInner("c", resp)
 		case dtEchoRes:
 			resp = client.handleInner("e", resp)
-		case dtWorkData, dtWorkWarning, dtWorkStatus, dtWorkComplete,
-			dtWorkFail, dtWorkException:
+		case dtWorkData, dtWorkWarning, dtWorkStatus:
 			resp = client.handleResponse(resp.Handle, resp)
+		case dtWorkComplete, dtWorkFail, dtWorkException:
+			resp = client.handleResponse(resp.Handle, resp)
+			if resp != nil {
+				delete(client.respHandler, resp.Handle)
+			}
 		}
 	}
 }
@@ -147,7 +162,6 @@ func (client *Client) err(e error) {
 func (client *Client) handleResponse(key string, resp *Response) *Response {
 	if h, ok := client.respHandler[key]; ok {
 		h(resp)
-		delete(client.respHandler, key)
 		return nil
 	}
 	return resp
@@ -227,7 +241,7 @@ func (client *Client) Status(handle string) (status *Status, err error) {
 	client.lastcall = "s" + handle
 	client.innerHandler["s"+handle] = func(resp *Response) {
 		var err error
-		status, err = resp.Status()
+		status, err = resp._status()
 		if err != nil {
 			client.err(err)
 		}
