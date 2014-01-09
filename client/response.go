@@ -61,7 +61,7 @@ func decodeResponse(data []byte) (resp *Response, l int, err error) {
 		return
 	}
 	dl := int(binary.BigEndian.Uint32(data[8:12]))
-	if a < minPacketLength + dl {
+	if a < minPacketLength+dl {
 		err = fmt.Errorf("Invalid data: %V", data)
 		return
 	}

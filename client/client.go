@@ -3,10 +3,10 @@
 package client
 
 import (
+	"bufio"
 	"io"
 	"net"
 	"sync"
-	"bufio"
 )
 
 // One client connect to one server.
@@ -20,7 +20,7 @@ type Client struct {
 	in                  chan *Response
 	isConn              bool
 	conn                net.Conn
-	rw					*bufio.ReadWriter
+	rw                  *bufio.ReadWriter
 
 	ErrorHandler ErrorHandler
 }

@@ -50,11 +50,11 @@ const (
 	dtSubmitJobLow    = 33
 	dtSubmitJobLowBg  = 34
 
-	WorkComplate =	dtWorkComplete
-	WorkDate = dtWorkData
-	WorkStatus = dtWorkStatus
-	WorkWarning = dtWorkWarning
-	WorkFail = dtWorkFail
+	WorkComplate  = dtWorkComplete
+	WorkDate      = dtWorkData
+	WorkStatus    = dtWorkStatus
+	WorkWarning   = dtWorkWarning
+	WorkFail      = dtWorkFail
 	WorkException = dtWorkException
 )
 

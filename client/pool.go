@@ -11,9 +11,9 @@ const (
 )
 
 var (
-	ErrNotFound = errors.New("Server Not Found")
+	ErrNotFound    = errors.New("Server Not Found")
 	SelectWithRate = selectWithRate
-	SelectRandom = selectRandom
+	SelectRandom   = selectRandom
 )
 
 type poolClient struct {

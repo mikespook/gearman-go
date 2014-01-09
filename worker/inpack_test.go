@@ -62,12 +62,12 @@ func TestInPack(t *testing.T) {
 }
 
 func BenchmarkDecode(b *testing.B) {
-    for i := 0; i < b.N; i++ {
+	for i := 0; i < b.N; i++ {
 		for _, v := range inpackcases {
 			_, _, err := decodeInPack([]byte(v["src"]))
 			if err != nil {
 				b.Error(err)
 			}
 		}
-    }
+	}
 }

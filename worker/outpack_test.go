@@ -83,7 +83,7 @@ func TestOutPack(t *testing.T) {
 }
 
 func BenchmarkEncode(b *testing.B) {
-    for i := 0; i < b.N; i++ {
+	for i := 0; i < b.N; i++ {
 		for k, v := range outpackcases {
 			outpack := getOutPack()
 			outpack.dataType = k
@@ -95,5 +95,5 @@ func BenchmarkEncode(b *testing.B) {
 			}
 			outpack.Encode()
 		}
-    }
+	}
 }

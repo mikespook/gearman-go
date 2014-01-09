@@ -7,7 +7,6 @@ import (
 )
 
 func main() {
-	var wg sync.WaitGroup
 	// Set the autoinc id generator
 	// You can write your own id generator
 	// by implementing IdGenerator interface.
@@ -22,27 +21,58 @@ func main() {
 		log.Println(e)
 	}
 	echo := []byte("Hello\x00 world")
-	wg.Add(1)
 	echomsg, err := c.Echo(echo)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	log.Println(string(echomsg))
-	wg.Done()
 	jobHandler := func(resp *client.Response) {
-		log.Printf("%s", resp.Data)
-		wg.Done()
+		switch resp.DataType {
+		case client.WorkException:
+			fallthrough
+		case client.WorkFail:
+			fallthrough
+		case client.WorkComplate:
+			if data, err := resp.Result(); err == nil {
+				log.Printf("RESULT: %V\n", data)
+			} else {
+				log.Printf("RESULT: %s\n", err)
+			}
+		case client.WorkWarning:
+			fallthrough
+		case client.WorkDate:
+			if data, err := resp.Update(); err == nil {
+				log.Printf("UPDATE: %V\n", data)
+			} else {
+				log.Printf("UPDATE: %V, %s\n", data, err)
+			}
+		case client.WorkStatus:
+			if data, err := resp.Status(); err == nil {
+				log.Printf("STATUS: %V\n", data)
+			} else {
+				log.Printf("STATUS: %s\n", err)
+			}
+		default:
+			log.Printf("UNKNOWN: %V", resp.Data)
+		}
 	}
 	handle, err := c.Do("ToUpper", echo, client.JobNormal, jobHandler)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	wg.Add(1)
 	status, err := c.Status(handle)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	log.Printf("%t", status)
 
-	wg.Wait()
+	_, err = c.Do("Foobar", echo, client.JobNormal, jobHandler)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	log.Println("Press Ctrl-C to exit ...")
+	var mutex sync.Mutex
+	mutex.Lock()
+	mutex.Lock()
 }

@@ -1,18 +1,18 @@
 package worker
 
 import (
+	"bufio"
 	"io"
 	"net"
 	"strings"
 	"sync"
-	"bufio"
 )
 
 // The agent of job server.
 type agent struct {
 	sync.Mutex
 	conn      net.Conn
-	rw		*bufio.ReadWriter
+	rw        *bufio.ReadWriter
 	worker    *Worker
 	in        chan []byte
 	net, addr string
