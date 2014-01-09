@@ -77,7 +77,7 @@ func (inpack *inPack) UpdateStatus(numerator, denominator int) {
 	hl := len(inpack.handle)
 	nl := len(n)
 	dl := len(d)
-	outpack.data = getBuffer(hl + nl + dl + 3)
+	outpack.data = getBuffer(hl + nl + dl + 2)
 	copy(outpack.data, []byte(inpack.handle))
 	copy(outpack.data[hl+1:], n)
 	copy(outpack.data[hl+nl+2:], d)

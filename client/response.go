@@ -32,13 +32,7 @@ func (resp *Response) Result() (data []byte, err error) {
 		err = ErrWorkException
 		fallthrough
 	case dtWorkComplete:
-		s := bytes.SplitN(resp.Data, []byte{'\x00'}, 2)
-		if len(s) != 2 {
-			err = fmt.Errorf("Invalid data: %V", resp.Data)
-			return
-		}
-		resp.Handle = string(s[0])
-		data = s[1]
+		data = resp.Data
 	default:
 		err = ErrDataType
 	}
@@ -52,26 +46,25 @@ func (resp *Response) Update() (data []byte, err error) {
 		err = ErrDataType
 		return
 	}
-	s := bytes.SplitN(resp.Data, []byte{'\x00'}, 2)
-	if len(s) != 2 {
-		err = ErrInvalidData
-		return
-	}
+	data = resp.Data
 	if resp.DataType == dtWorkWarning {
 		err = ErrWorkWarning
 	}
-	resp.Handle = string(s[0])
-	data = s[1]
 	return
 }
 
 // Decode a job from byte slice
 func decodeResponse(data []byte) (resp *Response, l int, err error) {
-	if len(data) < minPacketLength { // valid package should not less 12 bytes
+	a := len(data)
+	if a < minPacketLength { // valid package should not less 12 bytes
 		err = fmt.Errorf("Invalid data: %V", data)
 		return
 	}
 	dl := int(binary.BigEndian.Uint32(data[8:12]))
+	if a < minPacketLength + dl {
+		err = fmt.Errorf("Invalid data: %V", data)
+		return
+	}
 	dt := data[minPacketLength : dl+minPacketLength]
 	if len(dt) != int(dl) { // length not equal
 		err = fmt.Errorf("Invalid data: %V", data)
@@ -101,8 +94,31 @@ func decodeResponse(data []byte) (resp *Response, l int, err error) {
 	return
 }
 
-// status handler
 func (resp *Response) Status() (status *Status, err error) {
+	data := bytes.SplitN(resp.Data, []byte{'\x00'}, 2)
+	if len(data) != 2 {
+		err = fmt.Errorf("Invalid data: %V", resp.Data)
+		return
+	}
+	status = &Status{}
+	status.Handle = resp.Handle
+	status.Known = true
+	status.Running = true
+	status.Numerator, err = strconv.ParseUint(string(data[0]), 10, 0)
+	if err != nil {
+		err = fmt.Errorf("Invalid Integer: %s", data[0])
+		return
+	}
+	status.Denominator, err = strconv.ParseUint(string(data[1]), 10, 0)
+	if err != nil {
+		err = fmt.Errorf("Invalid Integer: %s", data[1])
+		return
+	}
+	return
+}
+
+// status handler
+func (resp *Response) _status() (status *Status, err error) {
 	data := bytes.SplitN(resp.Data, []byte{'\x00'}, 4)
 	if len(data) != 4 {
 		err = fmt.Errorf("Invalid data: %V", resp.Data)

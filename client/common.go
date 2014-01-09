@@ -49,19 +49,22 @@ const (
 	dtSubmitJobHighBg = 32
 	dtSubmitJobLow    = 33
 	dtSubmitJobLowBg  = 34
+
+	WorkComplate =	dtWorkComplete
+	WorkDate = dtWorkData
+	WorkStatus = dtWorkStatus
+	WorkWarning = dtWorkWarning
+	WorkFail = dtWorkFail
+	WorkException = dtWorkException
 )
 
 const (
 	// Job type
-	// JOB_NORMAL | JOB_BG means a normal level job run in background
-	// normal level
-	JobNormal = 0
-	// background job
-	JobBg = 1
+	JobNormal = iota
 	// low level
-	JobLow = 2
+	JobLow
 	// high level
-	JobHigh = 4
+	JobHigh
 )
 
 func getBuffer(l int) (buf []byte) {
