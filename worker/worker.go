@@ -12,7 +12,9 @@ import (
 const (
 	Unlimited = iota
 	OneByOne
+)
 
+const (
 	Immediately = iota
 )
 
