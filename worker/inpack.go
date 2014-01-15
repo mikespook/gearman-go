@@ -91,6 +91,10 @@ func decodeInPack(data []byte) (inpack *inPack, l int, err error) {
 		return
 	}
 	dl := int(binary.BigEndian.Uint32(data[8:12]))
+	if len(data) < (dl + minPacketLength) {
+		err = fmt.Errorf("Not enough data: %V", data)
+		return
+	}
 	dt := data[minPacketLength : dl+minPacketLength]
 	if len(dt) != int(dl) { // length not equal
 		err = fmt.Errorf("Invalid data: %V", data)
