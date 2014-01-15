@@ -40,7 +40,7 @@ func main() {
 			}
 		case client.WorkWarning:
 			fallthrough
-		case client.WorkDate:
+		case client.WorkData:
 			if data, err := resp.Update(); err == nil {
 				log.Printf("UPDATE: %V\n", data)
 			} else {
