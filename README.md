@@ -81,10 +81,20 @@ __Use at your own risk!__
  * 0.2-dev Refactoring a lot of things
  * 0.1-testing Old API and some known issues, eg. [issue-14](https://github.com/mikespook/gearman-go/issues/14)
 
-Authors
-=======
+Contributors
+============
 
- * Xing Xing <mikespook@gmail.com> [Blog](http://mikespook.com) [@Twitter](http://twitter.com/mikespook)
+(_Alphabetic order_)
+ 
+ * [Alex Zylman](https://github.com/azylman)
+ * [Ingo Oeser](https://github.com/nightlyone)
+ * [jake](https://github.com/jbaikge)
+ * [Jonathan Wills](https://github.com/runningwild)
+ * [miraclesu](https://github.com/miraclesu)
+ * [Paul Mach](https://github.com/paulmach)
+ * [Sam Grimee](https://github.com/sgrimee)
+ * suchj
+ * [Xing Xing](http://mikespook.com) <mikespook@gmail.com> [@Twitter](http://twitter.com/mikespook)
 
 Open Source - MIT Software License
 ==================================
