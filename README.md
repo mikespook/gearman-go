@@ -42,6 +42,7 @@ Usage
         log.Println(e)
     }
     w.AddServer("127.0.0.1:4730")
+    // this will give a timeout of 2 seconds. Use worker.Unlimited (0) if you want no timeout
     w.AddFunc("ToUpper", ToUpper, worker.Immediately)
     w.AddFunc("ToUpperTimeOut5", ToUpper, 5)
 	if err := w.Ready(); err != nil {
