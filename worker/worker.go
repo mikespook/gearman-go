@@ -12,8 +12,6 @@ import (
 const (
 	Unlimited = iota
 	OneByOne
-
-	Immediately = iota
 )
 
 // Worker is the only structure needed by worker side developing.

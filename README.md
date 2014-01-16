@@ -37,13 +37,15 @@ Usage
 
 ## Worker
 
-    w := worker.New(worker.Unlimited)
+	// Limit number of concurrent jobs execution. Use worker.Unlimited (0) if you want no limitation.
+    w := worker.New(worker.OneByOne)
     w.ErrHandler = func(e error) {
         log.Println(e)
     }
     w.AddServer("127.0.0.1:4730")
-    // this will give a timeout of 2 seconds. Use worker.Unlimited (0) if you want no timeout
-    w.AddFunc("ToUpper", ToUpper, worker.Immediately)
+    // Use worker.Unlimited (0) if you want no timeout
+    w.AddFunc("ToUpper", ToUpper, worker.Unlimited)
+	// This will give a timeout of 5 seconds
     w.AddFunc("ToUpperTimeOut5", ToUpper, 5)
 	if err := w.Ready(); err != nil {
 		log.Fatal(err)
@@ -99,10 +101,5 @@ Contributors
 
 Open Source - MIT Software License
 ==================================
-Copyright (c) 2012 Xing Xing
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+See LICENSE.
