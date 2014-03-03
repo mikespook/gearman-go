@@ -18,7 +18,6 @@ type Client struct {
 	respHandler         map[string]ResponseHandler
 	innerHandler        map[string]ResponseHandler
 	in                  chan *Response
-	isConn              bool
 	conn                net.Conn
 	rw                  *bufio.ReadWriter
 
@@ -40,7 +39,6 @@ func New(network, addr string) (client *Client, err error) {
 	}
 	client.rw = bufio.NewReadWriter(bufio.NewReader(client.conn),
 		bufio.NewWriter(client.conn))
-	client.isConn = true
 	go client.readLoop()
 	go client.processLoop()
 	return
@@ -83,7 +81,7 @@ func (client *Client) readLoop() {
 	var err error
 	var resp *Response
 ReadLoop:
-	for {
+	for client.conn != nil {
 		if data, err = client.read(bufferSize); err != nil {
 			client.err(err)
 			if err == ErrLostConn {
@@ -178,6 +176,9 @@ func (client *Client) handleInner(key string, resp *Response) *Response {
 
 func (client *Client) do(funcname string, data []byte,
 	flag uint32) (handle string, err error) {
+	if client.conn == nil {
+		return "", ErrLostConn
+	}
 	var mutex sync.Mutex
 	mutex.Lock()
 	client.lastcall = "c"
@@ -211,7 +212,7 @@ func (client *Client) Do(funcname string, data []byte,
 		datatype = dtSubmitJob
 	}
 	handle, err = client.do(funcname, data, datatype)
-	if h != nil {
+	if err == nil && h != nil {
 		client.respHandler[handle] = h
 	}
 	return
@@ -221,6 +222,9 @@ func (client *Client) Do(funcname string, data []byte,
 // flag can be set to: JobLow, JobNormal and JobHigh
 func (client *Client) DoBg(funcname string, data []byte,
 	flag byte) (handle string, err error) {
+	if client.conn == nil {
+		return "", ErrLostConn
+	}
 	var datatype uint32
 	switch flag {
 	case JobLow:
@@ -236,6 +240,9 @@ func (client *Client) DoBg(funcname string, data []byte,
 
 // Get job status from job server.
 func (client *Client) Status(handle string) (status *Status, err error) {
+	if client.conn == nil {
+		return nil, ErrLostConn
+	}
 	var mutex sync.Mutex
 	mutex.Lock()
 	client.lastcall = "s" + handle
@@ -257,6 +264,9 @@ func (client *Client) Status(handle string) (status *Status, err error) {
 
 // Echo.
 func (client *Client) Echo(data []byte) (echo []byte, err error) {
+	if client.conn == nil {
+		return nil, ErrLostConn
+	}
 	var mutex sync.Mutex
 	mutex.Lock()
 	client.innerHandler["e"] = func(resp *Response) {

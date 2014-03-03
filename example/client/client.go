@@ -4,6 +4,7 @@ import (
 	"github.com/mikespook/gearman-go/client"
 	"log"
 	"sync"
+	"os"
 )
 
 func main() {
@@ -19,6 +20,7 @@ func main() {
 	defer c.Close()
 	c.ErrorHandler = func(e error) {
 		log.Println(e)
+		os.Exit(1)
 	}
 	echo := []byte("Hello\x00 world")
 	echomsg, err := c.Echo(echo)
