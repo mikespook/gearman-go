@@ -11,7 +11,6 @@ var (
 	ErrNoneFuncs  = errors.New("None functions")
 	ErrTimeOut    = errors.New("Executing time out")
 	ErrUnknown    = errors.New("Unknown error")
-	ErrLostConn   = errors.New("Lost connection with Gearmand")
 )
 
 // Extract the error message
