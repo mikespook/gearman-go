@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"net"
 )
 
 func ToUpper(job worker.Job) ([]byte, error) {
@@ -39,13 +40,15 @@ func main() {
 	defer w.Close()
 	w.ErrorHandler = func(e error) {
 		log.Println(e)
-		if e == worker.ErrLostConn {
-			proc, err := os.FindProcess(os.Getpid())
-			if err != nil {
-				log.Println(err)
-			}
-			if err := proc.Signal(os.Interrupt); err != nil {
-				log.Println(err)
+		if opErr, ok := e.(*net.OpError); ok {
+			if ! opErr.Temporary() {
+				proc, err := os.FindProcess(os.Getpid())
+				if err != nil {
+					log.Println(err)
+				}
+				if err := proc.Signal(os.Interrupt); err != nil {
+					log.Println(err)
+				}
 			}
 		}
 	}
