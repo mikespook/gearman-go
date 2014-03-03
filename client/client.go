@@ -4,7 +4,6 @@ package client
 
 import (
 	"bufio"
-	"io"
 	"net"
 	"sync"
 )
@@ -62,9 +61,6 @@ func (client *Client) read(length int) (data []byte, err error) {
 	// read until data can be unpacked
 	for i := length; i > 0 || len(data) < minPacketLength; i -= n {
 		if n, err = client.rw.Read(buf); err != nil {
-			if err == io.EOF {
-				err = ErrLostConn
-			}
 			return
 		}
 		data = append(data, buf[0:n]...)
@@ -83,10 +79,16 @@ func (client *Client) readLoop() {
 ReadLoop:
 	for client.conn != nil {
 		if data, err = client.read(bufferSize); err != nil {
-			client.err(err)
-			if err == ErrLostConn {
+			if opErr, ok := err.(*net.OpError); ok {
+				if opErr.Timeout() {
+					client.err(err)
+				}
+				if opErr.Temporary() {
+					continue
+				}
 				break
 			}
+			client.err(err)
 			// If it is unexpected error and the connection wasn't
 			// closed by Gearmand, the client should close the conection
 			// and reconnect to job server.

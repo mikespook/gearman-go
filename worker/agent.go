@@ -2,9 +2,7 @@ package worker
 
 import (
 	"bufio"
-	"io"
 	"net"
-	"strings"
 	"sync"
 )
 
@@ -54,7 +52,13 @@ func (a *agent) work() {
 	var data, leftdata []byte
 	for {
 		if data, err = a.read(bufferSize); err != nil {
-			if err == ErrLostConn {
+			if opErr, ok := err.(*net.OpError); ok {
+				if opErr.Timeout() {
+					a.worker.err(err)
+				}
+				if opErr.Temporary() {
+					continue
+				}
 				break
 			}
 			a.worker.err(err)
@@ -116,16 +120,6 @@ func (a *agent) PreSleep() {
 	a.write(outpack)
 }
 
-func isClosed(err error) bool {
-	switch {
-	case err == io.EOF:
-		fallthrough
-	case strings.Contains(err.Error(), "use of closed network connection"):
-		return true
-	}
-	return false
-}
-
 // read length bytes from the socket
 func (a *agent) read(length int) (data []byte, err error) {
 	n := 0
@@ -133,9 +127,6 @@ func (a *agent) read(length int) (data []byte, err error) {
 	// read until data can be unpacked
 	for i := length; i > 0 || len(data) < minPacketLength; i -= n {
 		if n, err = a.rw.Read(buf); err != nil {
-			if isClosed(err) {
-				err = ErrLostConn
-			}
 			return
 		}
 		data = append(data, buf[0:n]...)
