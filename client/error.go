@@ -22,7 +22,7 @@ func getError(data []byte) (err error) {
 		err = fmt.Errorf("Not a error data: %V", data)
 		return
 	}
-	err = errors.New(fmt.Sprintf("%s: %s", rel[0], rel[1]))
+	err = fmt.Errorf("%s: %s", rel[0], rel[1])
 	return
 }
 
