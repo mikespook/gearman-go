@@ -90,6 +90,7 @@ Contributors
 (_Alphabetic order_)
  
  * [Alex Zylman](https://github.com/azylman)
+ * [Damian Gryski](https://github.com/dgryski)
  * [Ingo Oeser](https://github.com/nightlyone)
  * [jake](https://github.com/jbaikge)
  * [Jonathan Wills](https://github.com/runningwild)
