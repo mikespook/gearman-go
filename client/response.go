@@ -57,17 +57,17 @@ func (resp *Response) Update() (data []byte, err error) {
 func decodeResponse(data []byte) (resp *Response, l int, err error) {
 	a := len(data)
 	if a < minPacketLength { // valid package should not less 12 bytes
-		err = fmt.Errorf("Invalid data: %V", data)
+		err = fmt.Errorf("Invalid data: %v", data)
 		return
 	}
 	dl := int(binary.BigEndian.Uint32(data[8:12]))
 	if a < minPacketLength+dl {
-		err = fmt.Errorf("Invalid data: %V", data)
+		err = fmt.Errorf("Invalid data: %v", data)
 		return
 	}
 	dt := data[minPacketLength : dl+minPacketLength]
 	if len(dt) != int(dl) { // length not equal
-		err = fmt.Errorf("Invalid data: %V", data)
+		err = fmt.Errorf("Invalid data: %v", data)
 		return
 	}
 	resp = getResponse()
@@ -82,7 +82,7 @@ func decodeResponse(data []byte) (resp *Response, l int, err error) {
 			resp.Handle = string(s[0])
 			resp.Data = s[1]
 		} else {
-			err = fmt.Errorf("Invalid data: %V", data)
+			err = fmt.Errorf("Invalid data: %v", data)
 			return
 		}
 	case dtEchoRes:
@@ -97,7 +97,7 @@ func decodeResponse(data []byte) (resp *Response, l int, err error) {
 func (resp *Response) Status() (status *Status, err error) {
 	data := bytes.SplitN(resp.Data, []byte{'\x00'}, 2)
 	if len(data) != 2 {
-		err = fmt.Errorf("Invalid data: %V", resp.Data)
+		err = fmt.Errorf("Invalid data: %v", resp.Data)
 		return
 	}
 	status = &Status{}
@@ -121,7 +121,7 @@ func (resp *Response) Status() (status *Status, err error) {
 func (resp *Response) _status() (status *Status, err error) {
 	data := bytes.SplitN(resp.Data, []byte{'\x00'}, 4)
 	if len(data) != 4 {
-		err = fmt.Errorf("Invalid data: %V", resp.Data)
+		err = fmt.Errorf("Invalid data: %v", resp.Data)
 		return
 	}
 	status = &Status{}
