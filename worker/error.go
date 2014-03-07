@@ -18,7 +18,7 @@ var (
 func getError(data []byte) (err error) {
 	rel := bytes.SplitN(data, []byte{'\x00'}, 2)
 	if len(rel) != 2 {
-		err = fmt.Errorf("Not a error data: %V", data)
+		err = fmt.Errorf("Not a error data: %v", data)
 		return
 	}
 	err = fmt.Errorf("%s: %s", rel[0], rel[1])
