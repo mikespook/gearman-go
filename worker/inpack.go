@@ -87,17 +87,17 @@ func (inpack *inPack) UpdateStatus(numerator, denominator int) {
 // Decode job from byte slice
 func decodeInPack(data []byte) (inpack *inPack, l int, err error) {
 	if len(data) < minPacketLength { // valid package should not less 12 bytes
-		err = fmt.Errorf("Invalid data: %V", data)
+		err = fmt.Errorf("Invalid data: %v", data)
 		return
 	}
 	dl := int(binary.BigEndian.Uint32(data[8:12]))
 	if len(data) < (dl + minPacketLength) {
-		err = fmt.Errorf("Not enough data: %V", data)
+		err = fmt.Errorf("Not enough data: %v", data)
 		return
 	}
 	dt := data[minPacketLength : dl+minPacketLength]
 	if len(dt) != int(dl) { // length not equal
-		err = fmt.Errorf("Invalid data: %V", data)
+		err = fmt.Errorf("Invalid data: %v", data)
 		return
 	}
 	inpack = getInPack()

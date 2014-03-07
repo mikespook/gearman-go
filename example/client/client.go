@@ -34,7 +34,7 @@ func main() {
 			fallthrough
 		case client.WorkComplate:
 			if data, err := resp.Result(); err == nil {
-				log.Printf("RESULT: %V\n", data)
+				log.Printf("RESULT: %v\n", data)
 			} else {
 				log.Printf("RESULT: %s\n", err)
 			}
@@ -42,18 +42,18 @@ func main() {
 			fallthrough
 		case client.WorkData:
 			if data, err := resp.Update(); err == nil {
-				log.Printf("UPDATE: %V\n", data)
+				log.Printf("UPDATE: %v\n", data)
 			} else {
-				log.Printf("UPDATE: %V, %s\n", data, err)
+				log.Printf("UPDATE: %v, %s\n", data, err)
 			}
 		case client.WorkStatus:
 			if data, err := resp.Status(); err == nil {
-				log.Printf("STATUS: %V\n", data)
+				log.Printf("STATUS: %v\n", data)
 			} else {
 				log.Printf("STATUS: %s\n", err)
 			}
 		default:
-			log.Printf("UNKNOWN: %V", resp.Data)
+			log.Printf("UNKNOWN: %v", resp.Data)
 		}
 	}
 	handle, err := c.Do("ToUpper", echo, client.JobNormal, jobHandler)
@@ -64,7 +64,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Printf("%t", status)
+	log.Printf("%v", *status)
 
 	_, err = c.Do("Foobar", echo, client.JobNormal, jobHandler)
 	if err != nil {
