@@ -2,6 +2,8 @@ package worker
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/binary"
 	"net"
 	"sync"
 )
@@ -51,7 +53,7 @@ func (a *agent) work() {
 	var err error
 	var data, leftdata []byte
 	for {
-		if data, err = a.read(bufferSize); err != nil {
+		if data, err = a.read(); err != nil {
 			if opErr, ok := err.(*net.OpError); ok {
 				if opErr.Timeout() {
 					a.worker.err(err)
@@ -121,20 +123,31 @@ func (a *agent) PreSleep() {
 }
 
 // read length bytes from the socket
-func (a *agent) read(length int) (data []byte, err error) {
+func (a *agent) read() (data []byte, err error) {
 	n := 0
-	buf := getBuffer(bufferSize)
-	// read until data can be unpacked
-	for i := length; i > 0 || len(data) < minPacketLength; i -= n {
-		if n, err = a.rw.Read(buf); err != nil {
-			return
-		}
-		data = append(data, buf[0:n]...)
-		if n < bufferSize {
-			break
-		}
+
+	tmp := getBuffer(bufferSize)
+	var buf bytes.Buffer
+
+	// read the header so we can get the length of the data
+	if n, err = a.rw.Read(tmp); err != nil {
+		return
 	}
-	return
+	dl := int(binary.BigEndian.Uint32(tmp[8:12]))
+
+	// write what we read so far
+	buf.Write(tmp[:n])
+
+	// read until we receive all the data
+	for buf.Len() < dl+minPacketLength {
+		if n, err = a.rw.Read(tmp); err != nil {
+			return buf.Bytes(), err
+		}
+
+		buf.Write(tmp[:n])
+	}
+
+	return buf.Bytes(), err
 }
 
 // Internal write the encoded job.
