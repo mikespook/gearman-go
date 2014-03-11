@@ -94,6 +94,7 @@ Contributors
  * [Ingo Oeser](https://github.com/nightlyone)
  * [jake](https://github.com/jbaikge)
  * [Jonathan Wills](https://github.com/runningwild)
+ * [Kevin Darlington](https://github.com/kdar)
  * [miraclesu](https://github.com/miraclesu)
  * [Paul Mach](https://github.com/paulmach)
  * [Sam Grimee](https://github.com/sgrimee)
