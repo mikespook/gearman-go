@@ -185,12 +185,12 @@ func (client *Client) do(funcname string, data []byte,
 	mutex.Lock()
 	client.lastcall = "c"
 	client.innerHandler["c"] = func(resp *Response) {
+		defer mutex.Unlock()
 		if resp.DataType == dtError {
 			err = getError(resp.Data)
 			return
 		}
 		handle = resp.Handle
-		mutex.Unlock()
 	}
 	id := IdGen.Id()
 	req := getJob(id, []byte(funcname), data)
@@ -249,12 +249,12 @@ func (client *Client) Status(handle string) (status *Status, err error) {
 	mutex.Lock()
 	client.lastcall = "s" + handle
 	client.innerHandler["s"+handle] = func(resp *Response) {
+		defer mutex.Unlock()
 		var err error
 		status, err = resp._status()
 		if err != nil {
 			client.err(err)
 		}
-		mutex.Unlock()
 	}
 	req := getRequest()
 	req.DataType = dtGetStatus
