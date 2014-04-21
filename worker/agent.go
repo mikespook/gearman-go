@@ -137,10 +137,14 @@ func (a *agent) read(length int) (data []byte, err error) {
 	return
 }
 
+var m = sync.Mutex{}
+
 // Internal write the encoded job.
 func (a *agent) write(outpack *outPack) (err error) {
 	var n int
 	buf := outpack.Encode()
+	m.Lock()
+	defer m.Unlock()
 	for i := 0; i < len(buf); i += n {
 		n, err = a.rw.Write(buf[i:])
 		if err != nil {
