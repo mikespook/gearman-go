@@ -279,6 +279,7 @@ func (worker *Worker) exec(inpack *inPack) (err error) {
 		}
 		outpack.handle = inpack.handle
 		outpack.data = r.data
+		 //exec() maybe called concurrently, take care of race condition
 		inpack.a.write(outpack)
 	}
 	return
