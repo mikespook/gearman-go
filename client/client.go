@@ -192,7 +192,7 @@ func (client *Client) do(funcname string, data []byte,
 		handle = resp.Handle
 		mutex.Unlock()
 	}
-	id := IdGen.Id()
+	id := IdGen.Id(funcname, string(data))
 	req := getJob(id, []byte(funcname), data)
 	req.DataType = flag
 	client.write(req)
