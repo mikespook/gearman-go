@@ -145,10 +145,8 @@ func (client *Client) processLoop() {
 		case dtWorkData, dtWorkWarning, dtWorkStatus:
 			resp = client.handleResponse(resp.Handle, resp)
 		case dtWorkComplete, dtWorkFail, dtWorkException:
-			resp = client.handleResponse(resp.Handle, resp)
-			if resp != nil {
-				delete(client.respHandler, resp.Handle)
-			}
+			client.handleResponse(resp.Handle, resp)
+			delete(client.respHandler, resp.Handle)
 		}
 	}
 }
