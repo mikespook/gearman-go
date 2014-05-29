@@ -22,6 +22,7 @@ type Worker struct {
 	funcs   jobFuncs
 	in      chan *inPack
 	running bool
+	ready bool
 
 	Id           string
 	ErrorHandler ErrorHandler
@@ -174,12 +175,17 @@ func (worker *Worker) Ready() (err error) {
 	for funcname, f := range worker.funcs {
 		worker.addFunc(funcname, f.timeout)
 	}
+	worker.ready = true
 	return
 }
 
 // Main loop, block here
 // Most of time, this should be evaluated in goroutine.
 func (worker *Worker) Work() {
+	if ! worker.ready {
+		panic( "worker: Work() called before Ready()")
+	}
+
 	defer func() {
 		for _, a := range worker.agents {
 			a.Close()
