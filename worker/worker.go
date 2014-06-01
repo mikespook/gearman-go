@@ -183,7 +183,11 @@ func (worker *Worker) Ready() (err error) {
 // Most of time, this should be evaluated in goroutine.
 func (worker *Worker) Work() {
 	if ! worker.ready {
-		panic( "worker: Work() called before Ready()")
+		// didn't run Ready beforehand, so we'll have to do it:
+		err := worker.Ready()
+		if err != nil {
+			panic( err )
+		}
 	}
 
 	defer func() {

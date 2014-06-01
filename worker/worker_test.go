@@ -77,6 +77,33 @@ func TestWork(t *testing.T) {
 	wg.Wait()
 }
 
+
 func TestWorkerClose(t *testing.T) {
 	worker.Close()
+}
+
+func TestWorkWithoutReady(t * testing.T){
+	other_worker := New(Unlimited)
+	var wg sync.WaitGroup
+
+	if err := other_worker.AddServer(Network, "127.0.0.1:4730"); err != nil {
+		t.Error(err)
+	}
+	if err := other_worker.AddFunc("foobar", foobar, 0); err != nil {
+		t.Error(err)
+	}
+
+	other_worker.JobHandler = func( j Job ) error {
+		if( ! other_worker.ready ){
+			t.Error("Worker not ready as expected");
+		}
+		wg.Done()
+		return nil
+	}
+
+	go other_worker.Work();
+
+	wg.Add(1)
+	worker.Echo([]byte("Hello"))
+	wg.Wait();
 }
