@@ -53,13 +53,13 @@ func (a *agent) work() {
 	for {
 		if data, err = a.read(bufferSize); err != nil {
 			if opErr, ok := err.(*net.OpError); ok {
-				if opErr.Timeout() {
-					a.worker.err(err)
-				}
 				if opErr.Temporary() {
 					continue
+				}else{
+					a.worker.err(err)
+					break
 				}
-				break
+				
 			}
 			a.worker.err(err)
 			// If it is unexpected error and the connection wasn't
