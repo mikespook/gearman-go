@@ -5,3 +5,4 @@ go:
 before_install:
   - sudo apt-get remove -y gearman-job-server
   - sudo apt-get install -y gearman-job-server
+  - sudo apt-get install -y gearman-server
