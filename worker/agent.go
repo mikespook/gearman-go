@@ -66,6 +66,7 @@ func (a *agent) work() {
 				
 			} else if( err == io.EOF ){
 				a.disconnect_error(err)
+				break
 			}
 			a.worker.err(err)
 			// If it is unexpected error and the connection wasn't
