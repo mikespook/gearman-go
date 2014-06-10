@@ -18,11 +18,15 @@ const (
 // It can connect to multi-server and grab jobs.
 type Worker struct {
 	sync.Mutex
-	agents  []*agent
-	funcs   jobFuncs
-	in      chan *inPack
-	running bool
-	ready bool
+	agents       []*agent
+	funcs        jobFuncs
+	in           chan *inPack
+	running      bool
+	ready        bool
+	shuttingDown bool
+	activeJobs   int
+	// Used during shutdown to wait for all active jobs to finish
+	finishedDraining sync.WaitGroup
 
 	Id           string
 	ErrorHandler ErrorHandler
@@ -43,6 +47,7 @@ func New(limit int) (worker *Worker) {
 		funcs:  make(jobFuncs),
 		in:     make(chan *inPack, queueSize),
 	}
+	worker.finishedDraining.Add(1)
 	if limit != Unlimited {
 		worker.limit = make(chan bool, limit-1)
 	}
@@ -137,7 +142,9 @@ func (worker *Worker) handleInPack(inpack *inPack) {
 	case dtNoJob:
 		inpack.a.PreSleep()
 	case dtNoop:
-		inpack.a.Grab()
+		if !worker.shuttingDown {
+			inpack.a.Grab()
+		}
 	case dtJobAssign, dtJobAssignUniq:
 		go func() {
 			if err := worker.exec(inpack); err != nil {
@@ -147,7 +154,9 @@ func (worker *Worker) handleInPack(inpack *inPack) {
 		if worker.limit != nil {
 			worker.limit <- true
 		}
-		inpack.a.Grab()
+		if !worker.shuttingDown {
+			inpack.a.Grab()
+		}
 	case dtError:
 		worker.err(inpack.Err())
 		fallthrough
@@ -182,11 +191,11 @@ func (worker *Worker) Ready() (err error) {
 // Main loop, block here
 // Most of time, this should be evaluated in goroutine.
 func (worker *Worker) Work() {
-	if ! worker.ready {
+	if !worker.ready {
 		// didn't run Ready beforehand, so we'll have to do it:
 		err := worker.Ready()
 		if err != nil {
-			panic( err )
+			panic(err)
 		}
 	}
 
@@ -224,6 +233,19 @@ func (worker *Worker) Close() {
 	}
 }
 
+// Shutdown server gracefully. This function will block until all active work has finished.
+func (worker *Worker) Shutdown() {
+	worker.Lock()
+	worker.shuttingDown = true
+	if worker.activeJobs == 0 {
+		worker.finishedDraining.Done()
+	}
+	worker.Unlock()
+	// Wait for the mutex
+	worker.finishedDraining.Wait()
+	worker.Close()
+}
+
 // Echo
 func (worker *Worker) Echo(data []byte) {
 	outpack := getOutPack()
@@ -250,6 +272,29 @@ func (worker *Worker) SetId(id string) {
 	worker.broadcast(outpack)
 }
 
+// IncrementActive increments the count of active jobs. This will return false if no more
+// jobs can't be started because the worker is shutting down.
+func (worker *Worker) incrementActive() bool {
+	worker.Lock()
+	defer worker.Unlock()
+	if worker.shuttingDown {
+		return false
+	}
+	worker.activeJobs = worker.activeJobs + 1
+	return true
+}
+
+// DecrementActive decrements the count of active jobs. If the process is shutting down
+// it will set the finishedDraining flag if there are no more active jobs.
+func (worker *Worker) decrementActive() {
+	worker.Lock()
+	defer worker.Unlock()
+	worker.activeJobs = worker.activeJobs - 1
+	if worker.shuttingDown && worker.activeJobs == 0 {
+		worker.finishedDraining.Done()
+	}
+}
+
 // inner job executing
 func (worker *Worker) exec(inpack *inPack) (err error) {
 	defer func() {
@@ -263,7 +308,11 @@ func (worker *Worker) exec(inpack *inPack) (err error) {
 				err = ErrUnknown
 			}
 		}
+		worker.decrementActive()
 	}()
+	if !worker.incrementActive() {
+		return
+	}
 	f, ok := worker.funcs[inpack.fn]
 	if !ok {
 		return fmt.Errorf("The function does not exist: %s", inpack.fn)
