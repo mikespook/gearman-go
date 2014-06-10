@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -62,6 +63,7 @@ func TestWorkerRemoveFunc(t *testing.T) {
 }
 
 func TestWork(t *testing.T) {
+	// TODO: Worth looking at this for shutdown (WaitGroup)
 	var wg sync.WaitGroup
 	worker.JobHandler = func(job Job) error {
 		t.Logf("%s", job.Data())
@@ -78,12 +80,11 @@ func TestWork(t *testing.T) {
 	wg.Wait()
 }
 
-
 func TestWorkerClose(t *testing.T) {
 	worker.Close()
 }
 
-func TestWorkWithoutReady(t * testing.T){
+func TestWorkWithoutReady(t *testing.T) {
 	other_worker := New(Unlimited)
 
 	if err := other_worker.AddServer(Network, "127.0.0.1:4730"); err != nil {
@@ -92,15 +93,15 @@ func TestWorkWithoutReady(t * testing.T){
 	if err := other_worker.AddFunc("gearman-go-workertest", foobar, 0); err != nil {
 		t.Error(err)
 	}
-	
-	timeout := make(chan bool, 1)
-	done := make( chan bool, 1)
 
-	other_worker.JobHandler = func( j Job ) error {
-		if( ! other_worker.ready ){
-			t.Error("Worker not ready as expected");
+	timeout := make(chan bool, 1)
+	done := make(chan bool, 1)
+
+	other_worker.JobHandler = func(j Job) error {
+		if !other_worker.ready {
+			t.Error("Worker not ready as expected")
 		}
-		done <-true
+		done <- true
 		return nil
 	}
 	go func() {
@@ -108,15 +109,15 @@ func TestWorkWithoutReady(t * testing.T){
 		timeout <- true
 	}()
 
-	go func(){
-		other_worker.Work();
+	go func() {
+		other_worker.Work()
 	}()
 
-	// With the all-in-one Work() we don't know if the 
+	// With the all-in-one Work() we don't know if the
 	// worker is ready at this stage so we may have to wait a sec:
-	go func(){
+	go func() {
 		tries := 3
-		for( tries > 0 ){
+		for tries > 0 {
 			if other_worker.ready {
 				other_worker.Echo([]byte("Hello"))
 				break
@@ -127,24 +128,24 @@ func TestWorkWithoutReady(t * testing.T){
 			tries--
 		}
 	}()
-	
+
 	// determine if we've finished or timed out:
-	select{
-	case <- timeout:
+	select {
+	case <-timeout:
 		t.Error("Test timed out waiting for the worker")
-	case <- done:
+	case <-done:
 	}
 }
 
-func TestWorkWithoutReadyWithPanic(t * testing.T){
+func TestWorkWithoutReadyWithPanic(t *testing.T) {
 	other_worker := New(Unlimited)
-	
+
 	timeout := make(chan bool, 1)
-	done := make( chan bool, 1)
+	done := make(chan bool, 1)
 
 	// Going to work with no worker setup.
 	// when Work (hopefully) calls Ready it will get an error which should cause it to panic()
-	go func(){
+	go func() {
 		defer func() {
 			if err := recover(); err != nil {
 				done <- true
@@ -153,17 +154,122 @@ func TestWorkWithoutReadyWithPanic(t * testing.T){
 			t.Error("Work should raise a panic.")
 			done <- true
 		}()
-		other_worker.Work();
+		other_worker.Work()
 	}()
 	go func() {
 		time.Sleep(2 * time.Second)
 		timeout <- true
 	}()
 
-	select{
-	case <- timeout:
+	select {
+	case <-timeout:
 		t.Error("Test timed out waiting for the worker")
-	case <- done:
+	case <-done:
 	}
 
+}
+
+// initWorker creates a worker and adds the localhost server to it
+func initWorker(t *testing.T) *Worker {
+	otherWorker := New(Unlimited)
+	if err := otherWorker.AddServer(Network, "127.0.0.1:4730"); err != nil {
+		t.Error(err)
+	}
+	return otherWorker
+}
+
+// submitEmptyInPack sends an empty inpack with the specified fn name to the worker. It uses
+// the first agent of the worker.
+func submitEmptyInPack(t *testing.T, worker *Worker, function string) {
+	if l := len(worker.agents); l != 1 {
+		t.Error("The worker has no agents")
+	}
+	inpack := getInPack()
+	inpack.dataType = dtJobAssign
+	inpack.fn = function
+	inpack.a = worker.agents[0]
+	worker.in <- inpack
+}
+
+// TestShutdownSuccessJob tests that shutdown waits for the currently running job to
+// complete.
+func TestShutdownSuccessJob(t *testing.T) {
+	otherWorker := initWorker(t)
+	output := 0
+	var wg sync.WaitGroup
+	successJob := func(job Job) ([]byte, error) {
+		wg.Done()
+		// Sleep for 100ms to ensure that the shutdown waits for this to finish
+		time.Sleep(time.Duration(100 * time.Millisecond))
+		output = 1
+		return nil, nil
+	}
+	if err := otherWorker.AddFunc("test", successJob, 0); err != nil {
+		t.Error(err)
+	}
+	if err := otherWorker.Ready(); err != nil {
+		t.Error(err)
+		return
+	}
+	submitEmptyInPack(t, otherWorker, "test")
+	go otherWorker.Work()
+	// Wait for the success_job to start so that we know we didn't shutdown before even
+	// beginning to process the job.
+	wg.Add(1)
+	wg.Wait()
+	otherWorker.Shutdown()
+	if output != 1 {
+		t.Error("Expected 1, output was: " + strconv.Itoa(output))
+	}
+}
+
+func TestShutdownFailureJob(t *testing.T) {
+	otherWorker := initWorker(t)
+	output := 0
+	var wg sync.WaitGroup
+	failureJob := func(job Job) ([]byte, error) {
+		wg.Done()
+		// Sleep for 100ms to ensure that shutdown waits for this to finish
+		time.Sleep(time.Duration(100 * time.Millisecond))
+		output = 1
+		return nil, nil //new Error()
+	}
+
+	if err := otherWorker.AddFunc("test", failureJob, 0); err != nil {
+		t.Error(err)
+	}
+	if err := otherWorker.Ready(); err != nil {
+		t.Error(err)
+		return
+	}
+	submitEmptyInPack(t, otherWorker, "test")
+	go otherWorker.Work()
+	// Wait for the success_job to start so that we know we didn't shutdown before even
+	// beginning to process the job.
+	wg.Add(1)
+	wg.Wait()
+	otherWorker.Shutdown()
+	if output != 1 {
+		t.Error("Expected 1, output was: " + strconv.Itoa(output))
+	}
+}
+
+func TestSubmitJobAfterShutdown(t *testing.T) {
+	otherWorker := initWorker(t)
+	noRunJob := func(job Job) ([]byte, error) {
+		t.Error("This job shouldn't have been run")
+		return nil, nil
+	}
+	if err := otherWorker.AddFunc("test", noRunJob, 0); err != nil {
+		t.Error(err)
+	}
+	if err := otherWorker.Ready(); err != nil {
+		t.Error(err)
+		return
+	}
+	go otherWorker.Work()
+	otherWorker.Shutdown()
+	submitEmptyInPack(t, otherWorker, "test")
+	// Sleep for 100ms to make sure that the job doesn't actually run
+	time.Sleep(time.Duration(100 * time.Millisecond))
 }
