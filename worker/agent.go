@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"net"
 	"sync"
+        "io"
 )
 
 // The agent of job server.
@@ -57,20 +58,14 @@ func (a *agent) work() {
 				if opErr.Temporary() {
 					continue
 				}else{
-					a.Lock()
-					if( a.conn != nil ){
-						a.Unlock()
-						err = &WorkerDisconnectError{
-							OpError : opErr,
-							agent : a,
-						}
-						a.worker.err(err)
-					}
+					a.disconnect_error(err)
 					// else - we're probably dc'ing due to a Close()
 
 					break
 				}
 				
+			} else if( err == io.EOF ){
+				a.disconnect_error(err)
 			}
 			a.worker.err(err)
 			// If it is unexpected error and the connection wasn't
@@ -103,6 +98,16 @@ func (a *agent) work() {
 		if len(data) > l {
 			leftdata = data[l:]
 		}
+	}
+}
+
+func (a * agent) disconnect_error( err error ){
+	if( a.conn != nil ){
+		err = &WorkerDisconnectError{
+			err : err,
+			agent : a,
+		}
+		a.worker.err(err)
 	}
 }
 

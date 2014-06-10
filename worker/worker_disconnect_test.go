@@ -36,7 +36,6 @@ func run_gearman() {
 
 	// Make sure we clear up our gearman:
 	defer func() {
-		log.Println("killing gearmand")
 		gm_cmd.Process.Kill()
 	}()
 
@@ -58,7 +57,6 @@ func run_gearman() {
 func check_gearman_present() bool {
 	con, err := net.Dial(`tcp`, `127.0.0.1:`+port)
 	if err != nil {
-		log.Println("gearman not ready " + err.Error())
 		return false
 	}
 	con.Close()
@@ -233,7 +231,6 @@ func TestDcRc(t *testing.T) {
 }
 
 func send_client_request() {
-	log.Println("sending  client request")
 	c, err := client.New(Network, "127.0.0.1:"+port)
 	if err == nil {
 		_, err = c.DoBg("gearman-go-workertest", []byte{}, client.JobHigh)
