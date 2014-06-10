@@ -5,6 +5,7 @@ package worker
 import (
 	"encoding/binary"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 )
@@ -18,11 +19,15 @@ const (
 // It can connect to multi-server and grab jobs.
 type Worker struct {
 	sync.Mutex
-	agents  []*agent
-	funcs   jobFuncs
-	in      chan *inPack
-	running bool
-	ready bool
+	agents       []*agent
+	funcs        jobFuncs
+	in           chan *inPack
+	running      bool
+	ready        bool
+	// The shuttingDown variable is protected by the Worker lock
+	shuttingDown bool
+        // Used during shutdown to wait for all active jobs to finish
+	activeJobs   sync.WaitGroup
 
 	Id           string
 	ErrorHandler ErrorHandler
@@ -137,7 +142,9 @@ func (worker *Worker) handleInPack(inpack *inPack) {
 	case dtNoJob:
 		inpack.a.PreSleep()
 	case dtNoop:
-		inpack.a.Grab()
+		if !worker.isShuttingDown() {
+			inpack.a.Grab()
+		}
 	case dtJobAssign, dtJobAssignUniq:
 		go func() {
 			if err := worker.exec(inpack); err != nil {
@@ -147,7 +154,9 @@ func (worker *Worker) handleInPack(inpack *inPack) {
 		if worker.limit != nil {
 			worker.limit <- true
 		}
-		inpack.a.Grab()
+		if !worker.isShuttingDown() {
+			inpack.a.Grab()
+		}
 	case dtError:
 		worker.err(inpack.Err())
 		fallthrough
@@ -182,11 +191,12 @@ func (worker *Worker) Ready() (err error) {
 // Main loop, block here
 // Most of time, this should be evaluated in goroutine.
 func (worker *Worker) Work() {
-	if ! worker.ready {
+	if !worker.ready {
 		// didn't run Ready beforehand, so we'll have to do it:
 		err := worker.Ready()
 		if err != nil {
-			panic( err )
+			log.Println("Error making worker ready: " + err.Error())
+			panic(err)
 		}
 	}
 
@@ -224,6 +234,16 @@ func (worker *Worker) Close() {
 	}
 }
 
+// Shutdown server gracefully. This function will block until all active work has finished.
+func (worker *Worker) Shutdown() {
+	worker.Lock()
+	worker.shuttingDown = true
+	worker.Unlock()
+	// Wait for all the active jobs to finish
+	worker.activeJobs.Wait()
+	worker.Close()
+}
+
 // Echo
 func (worker *Worker) Echo(data []byte) {
 	outpack := getOutPack()
@@ -250,6 +270,13 @@ func (worker *Worker) SetId(id string) {
 	worker.broadcast(outpack)
 }
 
+// IsShutdown checks to see if the worker is in the process of being shutdown.
+func (worker *Worker) isShuttingDown() bool {
+	worker.Lock()
+	defer worker.Unlock()
+	return worker.shuttingDown
+}
+
 // inner job executing
 func (worker *Worker) exec(inpack *inPack) (err error) {
 	defer func() {
@@ -263,7 +290,14 @@ func (worker *Worker) exec(inpack *inPack) (err error) {
 				err = ErrUnknown
 			}
 		}
+		worker.activeJobs.Done()
 	}()
+	worker.activeJobs.Add(1)
+	// Make sure that we don't accept any new work from old grab requests
+	// after we starting shutting down.
+	if worker.isShuttingDown() {
+		return
+	}
 	f, ok := worker.funcs[inpack.fn]
 	if !ok {
 		return fmt.Errorf("The function does not exist: %s", inpack.fn)
