@@ -93,6 +93,7 @@ Contributors
  * [Damian Gryski](https://github.com/dgryski)
  * [Ingo Oeser](https://github.com/nightlyone)
  * [jake](https://github.com/jbaikge)
+ * [Joe Higton](https://github.com/draxil)
  * [Jonathan Wills](https://github.com/runningwild)
  * [Kevin Darlington](https://github.com/kdar)
  * [miraclesu](https://github.com/miraclesu)
