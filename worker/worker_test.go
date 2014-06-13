@@ -115,7 +115,7 @@ func TestWorkWithoutReady(t * testing.T){
 	// With the all-in-one Work() we don't know if the 
 	// worker is ready at this stage so we may have to wait a sec:
 	go func(){
-		tries := 3
+		tries := 5
 		for( tries > 0 ){
 			if other_worker.ready {
 				other_worker.Echo([]byte("Hello"))
@@ -123,7 +123,7 @@ func TestWorkWithoutReady(t * testing.T){
 			}
 
 			// still waiting for it to be ready..
-			time.Sleep(1 * time.Second)
+			time.Sleep(250 * time.Millisecond)
 			tries--
 		}
 	}()
