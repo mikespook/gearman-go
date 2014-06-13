@@ -18,7 +18,8 @@ var (
 
 type poolClient struct {
 	*Client
-	Rate int
+	Rate  int
+	mutex sync.Mutex
 }
 
 type SelectionHandler func(map[string]*poolClient, string) string
@@ -95,6 +96,8 @@ func (pool *Pool) Remove(addr string) {
 func (pool *Pool) Do(funcname string, data []byte,
 	flag byte, h ResponseHandler) (addr, handle string, err error) {
 	client := pool.selectServer()
+	client.Lock()
+	defer client.Unlock()
 	handle, err = client.Do(funcname, data, flag, h)
 	addr = client.addr
 	return
@@ -103,6 +106,8 @@ func (pool *Pool) Do(funcname string, data []byte,
 func (pool *Pool) DoBg(funcname string, data []byte,
 	flag byte) (addr, handle string, err error) {
 	client := pool.selectServer()
+	client.Lock()
+	defer client.Unlock()
 	handle, err = client.DoBg(funcname, data, flag)
 	addr = client.addr
 	return
@@ -112,6 +117,8 @@ func (pool *Pool) DoBg(funcname string, data []byte,
 // !!!Not fully tested.!!!
 func (pool *Pool) Status(addr, handle string) (status *Status, err error) {
 	if client, ok := pool.clients[addr]; ok {
+		client.Lock()
+		defer client.Unlock()
 		status, err = client.Status(handle)
 	} else {
 		err = ErrNotFound
@@ -131,6 +138,8 @@ func (pool *Pool) Echo(addr string, data []byte) (echo []byte, err error) {
 			return
 		}
 	}
+	client.Lock()
+	defer client.Unlock()
 	echo, err = client.Echo(data)
 	return
 }
