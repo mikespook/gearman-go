@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"net"
 	"sync"
+        "io"
 )
 
 // The agent of job server.
@@ -46,6 +47,7 @@ func (a *agent) work() {
 			a.worker.err(err.(error))
 		}
 	}()
+
 	var inpack *inPack
 	var l int
 	var err error
@@ -56,10 +58,15 @@ func (a *agent) work() {
 				if opErr.Temporary() {
 					continue
 				}else{
-					a.worker.err(err)
+					a.disconnect_error(err)
+					// else - we're probably dc'ing due to a Close()
+
 					break
 				}
 				
+			} else if( err == io.EOF ){
+				a.disconnect_error(err)
+				break
 			}
 			a.worker.err(err)
 			// If it is unexpected error and the connection wasn't
@@ -95,6 +102,16 @@ func (a *agent) work() {
 	}
 }
 
+func (a * agent) disconnect_error( err error ){
+	if( a.conn != nil ){
+		err = &WorkerDisconnectError{
+			err : err,
+			agent : a,
+		}
+		a.worker.err(err)
+	}
+}
+
 func (a *agent) Close() {
 	a.Lock()
 	defer a.Unlock()
@@ -107,6 +124,10 @@ func (a *agent) Close() {
 func (a *agent) Grab() {
 	a.Lock()
 	defer a.Unlock()
+	a.grab()
+}
+
+func (a *agent) grab(){
 	outpack := getOutPack()
 	outpack.dataType = dtGrabJobUniq
 	a.write(outpack)
@@ -118,6 +139,23 @@ func (a *agent) PreSleep() {
 	outpack := getOutPack()
 	outpack.dataType = dtPreSleep
 	a.write(outpack)
+}
+
+func (a *agent) reconnect() (error){
+	a.Lock()	
+	defer a.Unlock()
+	conn, err := net.Dial(a.net, a.addr)
+	if err != nil {
+		return err;
+	}
+	a.conn = conn
+	a.rw = bufio.NewReadWriter(bufio.NewReader(a.conn),
+				bufio.NewWriter(a.conn))
+	a.grab()
+	a.worker.reRegisterFuncsForAgent(a)
+
+	go a.work()
+	return nil
 }
 
 // read length bytes from the socket
