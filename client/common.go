@@ -5,7 +5,7 @@ const (
 	// queue size
 	queueSize = 8
 	// read buffer size
-	bufferSize = 1024
+	bufferSize = 8192
 	// min packet length
 	minPacketLength = 12
 

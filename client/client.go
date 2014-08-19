@@ -104,6 +104,7 @@ ReadLoop:
 		}
 		if len(leftdata) > 0 { // some data left for processing
 			data = append(leftdata, data...)
+			leftdata = nil
 		}
 		for {
 			l := len(data)
