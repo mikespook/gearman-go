@@ -194,7 +194,11 @@ func (client *Client) do(funcname string, data []byte,
 	id := IdGen.Id()
 	req := getJob(id, []byte(funcname), data)
 	req.DataType = flag
-	client.write(req)
+	if err = client.write(req); err != nil {
+		delete(client.innerHandler, "c")
+		client.lastcall = ""
+		return
+	}
 	mutex.Lock()
 	return
 }
