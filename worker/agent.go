@@ -86,7 +86,8 @@ func (a *agent) work() {
 		if len(leftdata) > 0 { // some data left for processing
 			data = append(leftdata, data...)
 		}
-		if len(data) < minPacketLength { // not enough data
+		length := len(data) - minPacketLength
+		if length < 0 || length < int(binary.BigEndian.Uint32(data[8:12])) {
 			leftdata = data
 			continue
 		}
