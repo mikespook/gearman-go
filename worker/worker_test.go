@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"bytes"
 	"sync"
 	"testing"
 	"time"
@@ -78,6 +79,61 @@ func TestWork(t *testing.T) {
 	wg.Wait()
 }
 
+func TestLargeDataWork(t *testing.T) {
+	worker := New(Unlimited)
+	defer worker.Close()
+
+	if err := worker.AddServer(Network, "127.0.0.1:4730"); err != nil {
+		t.Error(err)
+	}
+	worker.Ready()
+
+	l := 5714
+	var wg sync.WaitGroup
+
+	bigdataHandler := func(job Job) error {
+		defer wg.Done()
+		if len(job.Data()) != l {
+			t.Errorf("expected length %d. got %d.", l, len(job.Data()))
+		}
+		return nil
+	}
+	if err := worker.AddFunc("bigdata", foobar, 0); err != nil {
+		defer wg.Done()
+		t.Error(err)
+	}
+
+	worker.JobHandler = bigdataHandler
+
+	worker.ErrorHandler = func(err error) {
+		t.Fatal("shouldn't have received an error")
+	}
+
+	if err := worker.Ready(); err != nil {
+		t.Error(err)
+		return
+	}
+	go worker.Work()
+	wg.Add(1)
+
+	// var cli *client.Client
+	// var err error
+	// if cli, err = client.New(client.Network, "127.0.0.1:4730"); err != nil {
+	// 	t.Fatal(err)
+	// }
+	// cli.ErrorHandler = func(e error) {
+	// 	t.Error(e)
+	// }
+
+	// _, err = cli.Do("bigdata", bytes.Repeat([]byte("a"), l), client.JobLow, func(res *client.Response) {
+	// })
+	// if err != nil {
+	// 	t.Error(err)
+	// }
+
+	worker.Echo(bytes.Repeat([]byte("a"), l))
+	wg.Wait()
+}
 
 func TestWorkerClose(t *testing.T) {
 	worker.Close()
