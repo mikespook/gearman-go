@@ -16,10 +16,10 @@ func init() {
 	IdGen = NewAutoIncId()
 }
 
-// ID generator interface. Users can implament this for
+// ID generator interface. Users can implement this for
 // their own generator.
 type IdGenerator interface {
-	Id() string
+	Id(funcname, payload string) string
 }
 
 // AutoIncId
@@ -27,7 +27,7 @@ type autoincId struct {
 	value int64
 }
 
-func (ai *autoincId) Id() string {
+func (ai *autoincId) Id(funcname, payload string) string {
 	next := atomic.AddInt64(&ai.value, 1)
 	return strconv.FormatInt(next, 10)
 }
