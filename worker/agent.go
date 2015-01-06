@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"io"
 	"net"
 	"sync"
-        "io"
 )
 
 // The agent of job server.
@@ -59,14 +59,14 @@ func (a *agent) work() {
 			if opErr, ok := err.(*net.OpError); ok {
 				if opErr.Temporary() {
 					continue
-				}else{
+				} else {
 					a.disconnect_error(err)
 					// else - we're probably dc'ing due to a Close()
 
 					break
 				}
-				
-			} else if( err == io.EOF ){
+
+			} else if err == io.EOF {
 				a.disconnect_error(err)
 				break
 			}
@@ -104,11 +104,11 @@ func (a *agent) work() {
 	}
 }
 
-func (a * agent) disconnect_error( err error ){
-	if( a.conn != nil ){
+func (a *agent) disconnect_error(err error) {
+	if a.conn != nil {
 		err = &WorkerDisconnectError{
-			err : err,
-			agent : a,
+			err:   err,
+			agent: a,
 		}
 		a.worker.err(err)
 	}
@@ -129,7 +129,7 @@ func (a *agent) Grab() {
 	a.grab()
 }
 
-func (a *agent) grab(){
+func (a *agent) grab() {
 	outpack := getOutPack()
 	outpack.dataType = dtGrabJobUniq
 	a.write(outpack)
@@ -143,16 +143,16 @@ func (a *agent) PreSleep() {
 	a.write(outpack)
 }
 
-func (a *agent) reconnect() (error){
-	a.Lock()	
+func (a *agent) reconnect() error {
+	a.Lock()
 	defer a.Unlock()
 	conn, err := net.Dial(a.net, a.addr)
 	if err != nil {
-		return err;
+		return err
 	}
 	a.conn = conn
 	a.rw = bufio.NewReadWriter(bufio.NewReader(a.conn),
-				bufio.NewWriter(a.conn))
+		bufio.NewWriter(a.conn))
 	a.grab()
 	a.worker.reRegisterFuncsForAgent(a)
 

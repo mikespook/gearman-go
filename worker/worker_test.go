@@ -139,7 +139,7 @@ func TestWorkerClose(t *testing.T) {
 	worker.Close()
 }
 
-func TestWorkWithoutReady(t * testing.T){
+func TestWorkWithoutReady(t *testing.T) {
 	other_worker := New(Unlimited)
 
 	if err := other_worker.AddServer(Network, "127.0.0.1:4730"); err != nil {
@@ -148,15 +148,15 @@ func TestWorkWithoutReady(t * testing.T){
 	if err := other_worker.AddFunc("gearman-go-workertest", foobar, 0); err != nil {
 		t.Error(err)
 	}
-	
-	timeout := make(chan bool, 1)
-	done := make( chan bool, 1)
 
-	other_worker.JobHandler = func( j Job ) error {
-		if( ! other_worker.ready ){
-			t.Error("Worker not ready as expected");
+	timeout := make(chan bool, 1)
+	done := make(chan bool, 1)
+
+	other_worker.JobHandler = func(j Job) error {
+		if !other_worker.ready {
+			t.Error("Worker not ready as expected")
 		}
-		done <-true
+		done <- true
 		return nil
 	}
 	go func() {
@@ -164,15 +164,15 @@ func TestWorkWithoutReady(t * testing.T){
 		timeout <- true
 	}()
 
-	go func(){
-		other_worker.Work();
+	go func() {
+		other_worker.Work()
 	}()
 
-	// With the all-in-one Work() we don't know if the 
+	// With the all-in-one Work() we don't know if the
 	// worker is ready at this stage so we may have to wait a sec:
-	go func(){
+	go func() {
 		tries := 5
-		for( tries > 0 ){
+		for tries > 0 {
 			if other_worker.ready {
 				other_worker.Echo([]byte("Hello"))
 				break
@@ -183,24 +183,24 @@ func TestWorkWithoutReady(t * testing.T){
 			tries--
 		}
 	}()
-	
+
 	// determine if we've finished or timed out:
-	select{
-	case <- timeout:
+	select {
+	case <-timeout:
 		t.Error("Test timed out waiting for the worker")
-	case <- done:
+	case <-done:
 	}
 }
 
-func TestWorkWithoutReadyWithPanic(t * testing.T){
+func TestWorkWithoutReadyWithPanic(t *testing.T) {
 	other_worker := New(Unlimited)
-	
+
 	timeout := make(chan bool, 1)
-	done := make( chan bool, 1)
+	done := make(chan bool, 1)
 
 	// Going to work with no worker setup.
 	// when Work (hopefully) calls Ready it will get an error which should cause it to panic()
-	go func(){
+	go func() {
 		defer func() {
 			if err := recover(); err != nil {
 				done <- true
@@ -209,17 +209,17 @@ func TestWorkWithoutReadyWithPanic(t * testing.T){
 			t.Error("Work should raise a panic.")
 			done <- true
 		}()
-		other_worker.Work();
+		other_worker.Work()
 	}()
 	go func() {
 		time.Sleep(2 * time.Second)
 		timeout <- true
 	}()
 
-	select{
-	case <- timeout:
+	select {
+	case <-timeout:
 		t.Error("Test timed out waiting for the worker")
-	case <- done:
+	case <-done:
 	}
 
 }

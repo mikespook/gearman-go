@@ -50,8 +50,8 @@ func run_gearman() {
 		panic(`Unable to start gearman aborting test`)
 	}
 	gearman_ready <- true
-	
-	<- kill_gearman
+
+	<-kill_gearman
 }
 
 func check_gearman_present() bool {
@@ -134,14 +134,14 @@ func TestBasicDisconnect(t *testing.T) {
 	send_client_request()
 
 	select {
-	case <- done:
+	case <-done:
 		t.Error("Client request handled (somehow), did we magically reconnect?")
 	case <-timeout:
 		t.Error("Test timed out waiting for the error handler")
 	case <-c_error:
 		// error was handled!
-		if ! was_dc_err {
-			t.Error( "Disconnect didn't manifest as a net.OpError?")
+		if !was_dc_err {
+			t.Error("Disconnect didn't manifest as a net.OpError?")
 		}
 	}
 	worker.Close()
@@ -175,24 +175,23 @@ func TestDcRc(t *testing.T) {
 
 	worker.ErrorHandler = func(e error) {
 		wdc, wdcok := e.(*WorkerDisconnectError)
-		
-		if( wdcok){
+
+		if wdcok {
 			log.Println("Reconnecting!")
 			reconnected := false
-			for tries := 20 ; ! reconnected && tries > 0; tries -- {
+			for tries := 20; !reconnected && tries > 0; tries-- {
 				rcerr := wdc.Reconnect()
-				if rcerr != nil{
+				if rcerr != nil {
 					time.Sleep(250 * time.Millisecond)
-				} else{
-					reconnected = true;
+				} else {
+					reconnected = true
 				}
 			}
-			
-				
-		} else{
+
+		} else {
 			panic("Some other kind of error " + e.Error())
 		}
-		
+
 	}
 
 	go func() {
@@ -219,9 +218,9 @@ func TestDcRc(t *testing.T) {
 	}
 
 	send_client_request()
-	
+
 	select {
-	case <- done:
+	case <-done:
 	case <-timeout:
 		t.Error("Test timed out")
 	}
