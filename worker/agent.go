@@ -200,3 +200,10 @@ func (a *agent) write(outpack *outPack) (err error) {
 	}
 	return a.rw.Flush()
 }
+
+// Write with lock
+func (a *agent) Write(outpack *outPack) (err error) {
+	a.Lock()
+	defer a.Unlock()
+	return a.write(outpack)
+}

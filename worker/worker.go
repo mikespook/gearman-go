@@ -292,7 +292,7 @@ func (worker *Worker) exec(inpack *inPack) (err error) {
 		}
 		outpack.handle = inpack.handle
 		outpack.data = r.data
-		inpack.a.write(outpack)
+		inpack.a.Write(outpack)
 	}
 	return
 }
