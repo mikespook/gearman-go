@@ -70,5 +70,5 @@ func main() {
 	}
 	go w.Work()
 	signal.Bind(os.Interrupt, func() uint { return signal.BreakExit })
-	signal.Loop()
+	signal.Wait()
 }
