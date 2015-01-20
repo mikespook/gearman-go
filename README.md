@@ -67,10 +67,10 @@ Usage
 	echomsg, err := c.Echo(echo)
 	// ... error handling
     log.Println(string(echomsg))
-    jobHandler := func(job *client.Job) {
-        log.Printf("%s", job.Data)
+    jobHandler := func(resp *client.Response) {
+        log.Printf("%s", resp.Data)
     }
-    handle, err := c.Do("ToUpper", echo, client.JOB_NORMAL, jobHandler)
+    handle, err := c.Do("ToUpper", echo, client.JobNormal, jobHandler)
 	// ...	
 
 Branches
