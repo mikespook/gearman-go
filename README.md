@@ -38,7 +38,8 @@ Usage
 ## Worker
 
 ```go
-// Limit number of concurrent jobs execution. Use worker.Unlimited (0) if you want no limitation.
+// Limit number of concurrent jobs execution. 
+// Use worker.Unlimited (0) if you want no limitation.
 w := worker.New(worker.OneByOne)
 w.ErrHandler = func(e error) {
 	log.Println(e)
