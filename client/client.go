@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+var (
+	DefaultTimeout time.Duration = 1000
+)
+
 // One client connect to one server.
 // Use Pool for multi-connections.
 type Client struct {
@@ -21,7 +25,7 @@ type Client struct {
 	conn                net.Conn
 	rw                  *bufio.ReadWriter
 
-	RespTimeout         time.Duration  // response timeout for do() in ms
+	ResponseTimeout time.Duration // response timeout for do() in ms
 
 	ErrorHandler ErrorHandler
 }
@@ -29,12 +33,12 @@ type Client struct {
 // Return a client.
 func New(network, addr string) (client *Client, err error) {
 	client = &Client{
-		net:          network,
-		addr:         addr,
-		respHandler:  make(map[string]ResponseHandler, queueSize),
-		innerHandler: make(map[string]ResponseHandler, queueSize),
-		in:           make(chan *Response, queueSize),
-		RespTimeout:  1000,
+		net:             network,
+		addr:            addr,
+		respHandler:     make(map[string]ResponseHandler, queueSize),
+		innerHandler:    make(map[string]ResponseHandler, queueSize),
+		in:              make(chan *Response, queueSize),
+		ResponseTimeout: DefaultTimeout,
 	}
 	client.conn, err = net.Dial(client.net, client.addr)
 	if err != nil {
@@ -181,7 +185,7 @@ func (client *Client) handleInner(key string, resp *Response) *Response {
 
 type handleOrError struct {
 	handle string
-	err error
+	err    error
 }
 
 func (client *Client) do(funcname string, data []byte,
@@ -208,7 +212,7 @@ func (client *Client) do(funcname string, data []byte,
 		client.lastcall = ""
 		return
 	}
-	var timer = time.After(client.RespTimeout * time.Millisecond)
+	var timer = time.After(client.ResponseTimeout * time.Millisecond)
 	select {
 	case ret := <-result:
 		return ret.handle, ret.err
