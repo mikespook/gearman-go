@@ -60,10 +60,11 @@ type Pool struct {
 }
 
 // Return a new pool.
-func NewPool() (pool *Pool) {
+func NewPool(selectionFn SelectionHandler, errorFn ErrorHandler) (pool *Pool) {
 	return &Pool{
 		clients:          make(map[string]*poolClient, poolSize),
-		SelectionHandler: SelectWithRate,
+		SelectionHandler: selectionFn,
+		ErrorHandler:     errorFn,
 	}
 }
 

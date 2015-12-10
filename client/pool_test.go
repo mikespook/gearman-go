@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	pool = NewPool()
+	pool = NewPool(selectWithRate, func(error) {})
 )
 
 func TestPoolAdd(t *testing.T) {
