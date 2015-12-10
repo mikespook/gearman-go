@@ -16,15 +16,15 @@ var (
 	SelectRandom   = selectRandom
 )
 
-type poolClient struct {
+type PoolClient struct {
 	*Client
 	Rate  int
 	mutex sync.Mutex
 }
 
-type SelectionHandler func(map[string]*poolClient, string) string
+type SelectionHandler func(map[string]*PoolClient, string) string
 
-func selectWithRate(pool map[string]*poolClient,
+func selectWithRate(pool map[string]*PoolClient,
 	last string) (addr string) {
 	total := 0
 	for _, item := range pool {
@@ -36,7 +36,7 @@ func selectWithRate(pool map[string]*poolClient,
 	return last
 }
 
-func selectRandom(pool map[string]*poolClient,
+func selectRandom(pool map[string]*PoolClient,
 	last string) (addr string) {
 	r := rand.Intn(len(pool))
 	i := 0
@@ -53,7 +53,7 @@ type Pool struct {
 	SelectionHandler SelectionHandler
 	ErrorHandler     ErrorHandler
 
-	clients map[string]*poolClient
+	clients map[string]*PoolClient
 	last    string
 
 	mutex sync.Mutex
@@ -62,7 +62,7 @@ type Pool struct {
 // Return a new pool.
 func NewPool() (pool *Pool) {
 	return &Pool{
-		clients:          make(map[string]*poolClient, poolSize),
+		clients:          make(map[string]*PoolClient, poolSize),
 		SelectionHandler: SelectWithRate,
 	}
 }
@@ -71,7 +71,7 @@ func NewPool() (pool *Pool) {
 func (pool *Pool) Add(net, addr string, rate int) (err error) {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
-	var item *poolClient
+	var item *PoolClient
 	var ok bool
 	if item, ok = pool.clients[addr]; ok {
 		item.Rate = rate
@@ -79,7 +79,7 @@ func (pool *Pool) Add(net, addr string, rate int) (err error) {
 		var client *Client
 		client, err = New(net, addr)
 		if err == nil {
-			item = &poolClient{Client: client, Rate: rate}
+			item = &PoolClient{Client: client, Rate: rate}
 			pool.clients[addr] = item
 		}
 	}
@@ -128,7 +128,7 @@ func (pool *Pool) Status(addr, handle string) (status *Status, err error) {
 
 // Send a something out, get the samething back.
 func (pool *Pool) Echo(addr string, data []byte) (echo []byte, err error) {
-	var client *poolClient
+	var client *PoolClient
 	if addr == "" {
 		client = pool.selectServer()
 	} else {
@@ -154,7 +154,7 @@ func (pool *Pool) Close() (err map[string]error) {
 }
 
 // selecting server
-func (pool *Pool) selectServer() (client *poolClient) {
+func (pool *Pool) selectServer() (client *PoolClient) {
 	for client == nil {
 		addr := pool.SelectionHandler(pool.clients, pool.last)
 		var ok bool
