@@ -16,15 +16,15 @@ var (
 	SelectRandom   = selectRandom
 )
 
-type poolClient struct {
+type PoolClient struct {
 	*Client
 	Rate  int
 	mutex sync.Mutex
 }
 
-type SelectionHandler func(map[string]*poolClient, string) string
+type SelectionHandler func(map[string]*PoolClient, string) string
 
-func selectWithRate(pool map[string]*poolClient,
+func selectWithRate(pool map[string]*PoolClient,
 	last string) (addr string) {
 	total := 0
 	for _, item := range pool {
@@ -36,7 +36,7 @@ func selectWithRate(pool map[string]*poolClient,
 	return last
 }
 
-func selectRandom(pool map[string]*poolClient,
+func selectRandom(pool map[string]*PoolClient,
 	last string) (addr string) {
 	r := rand.Intn(len(pool))
 	i := 0
@@ -52,9 +52,9 @@ func selectRandom(pool map[string]*poolClient,
 type Pool struct {
 	SelectionHandler SelectionHandler
 	ErrorHandler     ErrorHandler
+	Clients          map[string]*PoolClient
 
-	clients map[string]*poolClient
-	last    string
+	last string
 
 	mutex sync.Mutex
 }
@@ -62,7 +62,7 @@ type Pool struct {
 // Return a new pool.
 func NewPool() (pool *Pool) {
 	return &Pool{
-		clients:          make(map[string]*poolClient, poolSize),
+		Clients:          make(map[string]*PoolClient, poolSize),
 		SelectionHandler: SelectWithRate,
 	}
 }
@@ -71,16 +71,16 @@ func NewPool() (pool *Pool) {
 func (pool *Pool) Add(net, addr string, rate int) (err error) {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
-	var item *poolClient
+	var item *PoolClient
 	var ok bool
-	if item, ok = pool.clients[addr]; ok {
+	if item, ok = pool.Clients[addr]; ok {
 		item.Rate = rate
 	} else {
 		var client *Client
 		client, err = New(net, addr)
 		if err == nil {
-			item = &poolClient{Client: client, Rate: rate}
-			pool.clients[addr] = item
+			item = &PoolClient{Client: client, Rate: rate}
+			pool.Clients[addr] = item
 		}
 	}
 	return
@@ -90,7 +90,7 @@ func (pool *Pool) Add(net, addr string, rate int) (err error) {
 func (pool *Pool) Remove(addr string) {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
-	delete(pool.clients, addr)
+	delete(pool.Clients, addr)
 }
 
 func (pool *Pool) Do(funcname string, data []byte,
@@ -116,7 +116,7 @@ func (pool *Pool) DoBg(funcname string, data []byte,
 // Get job status from job server.
 // !!!Not fully tested.!!!
 func (pool *Pool) Status(addr, handle string) (status *Status, err error) {
-	if client, ok := pool.clients[addr]; ok {
+	if client, ok := pool.Clients[addr]; ok {
 		client.Lock()
 		defer client.Unlock()
 		status, err = client.Status(handle)
@@ -128,12 +128,12 @@ func (pool *Pool) Status(addr, handle string) (status *Status, err error) {
 
 // Send a something out, get the samething back.
 func (pool *Pool) Echo(addr string, data []byte) (echo []byte, err error) {
-	var client *poolClient
+	var client *PoolClient
 	if addr == "" {
 		client = pool.selectServer()
 	} else {
 		var ok bool
-		if client, ok = pool.clients[addr]; !ok {
+		if client, ok = pool.Clients[addr]; !ok {
 			err = ErrNotFound
 			return
 		}
@@ -147,18 +147,18 @@ func (pool *Pool) Echo(addr string, data []byte) (echo []byte, err error) {
 // Close
 func (pool *Pool) Close() (err map[string]error) {
 	err = make(map[string]error)
-	for _, c := range pool.clients {
+	for _, c := range pool.Clients {
 		err[c.addr] = c.Close()
 	}
 	return
 }
 
 // selecting server
-func (pool *Pool) selectServer() (client *poolClient) {
+func (pool *Pool) selectServer() (client *PoolClient) {
 	for client == nil {
-		addr := pool.SelectionHandler(pool.clients, pool.last)
+		addr := pool.SelectionHandler(pool.Clients, pool.last)
 		var ok bool
-		if client, ok = pool.clients[addr]; ok {
+		if client, ok = pool.Clients[addr]; ok {
 			pool.last = addr
 			break
 		}
