@@ -11,9 +11,7 @@ const (
 )
 
 var (
-	ErrNotFound    = errors.New("Server Not Found")
-	SelectWithRate = selectWithRate
-	SelectRandom   = selectRandom
+	ErrNotFound = errors.New("Server Not Found")
 )
 
 type PoolClient struct {
@@ -24,7 +22,7 @@ type PoolClient struct {
 
 type SelectionHandler func(map[string]*PoolClient, string) string
 
-func selectWithRate(pool map[string]*PoolClient,
+func SelectWithRate(pool map[string]*PoolClient,
 	last string) (addr string) {
 	total := 0
 	for _, item := range pool {
@@ -36,7 +34,7 @@ func selectWithRate(pool map[string]*PoolClient,
 	return last
 }
 
-func selectRandom(pool map[string]*PoolClient,
+func SelectRandom(pool map[string]*PoolClient,
 	last string) (addr string) {
 	r := rand.Intn(len(pool))
 	i := 0
