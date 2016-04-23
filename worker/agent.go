@@ -90,16 +90,22 @@ func (a *agent) work() {
 			leftdata = data
 			continue
 		}
-		if inpack, l, err = decodeInPack(data); err != nil {
-			a.worker.err(err)
-			leftdata = data
-			continue
-		}
-		leftdata = nil
-		inpack.a = a
-		a.worker.in <- inpack
-		if len(data) > l {
-			leftdata = data[l:]
+		for {
+			if inpack, l, err = decodeInPack(data); err != nil {
+				a.worker.err(err)
+				leftdata = data
+				break
+			} else {
+				leftdata = nil
+				inpack.a = a
+				a.worker.in <- inpack
+				if len(data) == l {
+					break
+				}
+				if len(data) > l {
+					data = data[l:]
+				}
+			}
 		}
 	}
 }
