@@ -18,8 +18,8 @@ func TestPoolAdd(t *testing.T) {
 		t.Log(err)
 		c -= 1
 	}
-	if len(pool.clients) != c {
-		t.Errorf("%d servers expected, %d got.", c, len(pool.clients))
+	if len(pool.Clients) != c {
+		t.Errorf("%d servers expected, %d got.", c, len(pool.Clients))
 	}
 }
 

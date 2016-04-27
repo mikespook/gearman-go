@@ -6,6 +6,11 @@ import (
 	"bufio"
 	"net"
 	"sync"
+	"time"
+)
+
+var (
+	DefaultTimeout time.Duration = 1000
 )
 
 // One client connect to one server.
@@ -20,17 +25,20 @@ type Client struct {
 	conn                net.Conn
 	rw                  *bufio.ReadWriter
 
+	ResponseTimeout time.Duration // response timeout for do() in ms
+
 	ErrorHandler ErrorHandler
 }
 
 // Return a client.
 func New(network, addr string) (client *Client, err error) {
 	client = &Client{
-		net:          network,
-		addr:         addr,
-		respHandler:  make(map[string]ResponseHandler, queueSize),
-		innerHandler: make(map[string]ResponseHandler, queueSize),
-		in:           make(chan *Response, queueSize),
+		net:             network,
+		addr:            addr,
+		respHandler:     make(map[string]ResponseHandler, queueSize),
+		innerHandler:    make(map[string]ResponseHandler, queueSize),
+		in:              make(chan *Response, queueSize),
+		ResponseTimeout: DefaultTimeout,
 	}
 	client.conn, err = net.Dial(client.net, client.addr)
 	if err != nil {
@@ -104,6 +112,7 @@ ReadLoop:
 		}
 		if len(leftdata) > 0 { // some data left for processing
 			data = append(leftdata, data...)
+			leftdata = nil
 		}
 		for {
 			l := len(data)
@@ -145,10 +154,8 @@ func (client *Client) processLoop() {
 		case dtWorkData, dtWorkWarning, dtWorkStatus:
 			resp = client.handleResponse(resp.Handle, resp)
 		case dtWorkComplete, dtWorkFail, dtWorkException:
-			resp = client.handleResponse(resp.Handle, resp)
-			if resp != nil {
-				delete(client.respHandler, resp.Handle)
-			}
+			client.handleResponse(resp.Handle, resp)
+			delete(client.respHandler, resp.Handle)
 		}
 	}
 }
@@ -176,27 +183,44 @@ func (client *Client) handleInner(key string, resp *Response) *Response {
 	return resp
 }
 
+type handleOrError struct {
+	handle string
+	err    error
+}
+
 func (client *Client) do(funcname string, data []byte,
 	flag uint32) (handle string, err error) {
 	if client.conn == nil {
 		return "", ErrLostConn
 	}
-	var mutex sync.Mutex
-	mutex.Lock()
+	var result = make(chan handleOrError, 1)
 	client.lastcall = "c"
 	client.innerHandler["c"] = func(resp *Response) {
 		if resp.DataType == dtError {
 			err = getError(resp.Data)
+			result <- handleOrError{"", err}
 			return
 		}
 		handle = resp.Handle
-		mutex.Unlock()
+		result <- handleOrError{handle, nil}
 	}
 	id := IdGen.Id()
 	req := getJob(id, []byte(funcname), data)
 	req.DataType = flag
-	client.write(req)
-	mutex.Lock()
+	if err = client.write(req); err != nil {
+		delete(client.innerHandler, "c")
+		client.lastcall = ""
+		return
+	}
+	var timer = time.After(client.ResponseTimeout * time.Millisecond)
+	select {
+	case ret := <-result:
+		return ret.handle, ret.err
+	case <-timer:
+		delete(client.innerHandler, "c")
+		client.lastcall = ""
+		return "", ErrLostConn
+	}
 	return
 }
 
@@ -249,12 +273,12 @@ func (client *Client) Status(handle string) (status *Status, err error) {
 	mutex.Lock()
 	client.lastcall = "s" + handle
 	client.innerHandler["s"+handle] = func(resp *Response) {
+		defer mutex.Unlock()
 		var err error
 		status, err = resp._status()
 		if err != nil {
 			client.err(err)
 		}
-		mutex.Unlock()
 	}
 	req := getRequest()
 	req.DataType = dtGetStatus

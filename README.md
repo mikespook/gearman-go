@@ -37,41 +37,46 @@ Usage
 
 ## Worker
 
-	// Limit number of concurrent jobs execution. Use worker.Unlimited (0) if you want no limitation.
-    w := worker.New(worker.OneByOne)
-    w.ErrHandler = func(e error) {
-        log.Println(e)
-    }
-    w.AddServer("127.0.0.1:4730")
-    // Use worker.Unlimited (0) if you want no timeout
-    w.AddFunc("ToUpper", ToUpper, worker.Unlimited)
-	// This will give a timeout of 5 seconds
-    w.AddFunc("ToUpperTimeOut5", ToUpper, 5)
-	if err := w.Ready(); err != nil {
-		log.Fatal(err)
-		return
-	}
-	go w.Work()
-	
+```go
+// Limit number of concurrent jobs execution. 
+// Use worker.Unlimited (0) if you want no limitation.
+w := worker.New(worker.OneByOne)
+w.ErrHandler = func(e error) {
+	log.Println(e)
+}
+w.AddServer("127.0.0.1:4730")
+// Use worker.Unlimited (0) if you want no timeout
+w.AddFunc("ToUpper", ToUpper, worker.Unlimited)
+// This will give a timeout of 5 seconds
+w.AddFunc("ToUpperTimeOut5", ToUpper, 5)
+
+if err := w.Ready(); err != nil {
+	log.Fatal(err)
+	return
+}
+go w.Work()
+```
 
 ## Client
 
-	// ...
-	c, err := client.New("tcp4", "127.0.0.1:4730")
-    // ... error handling
-	defer c.Close()
-	c.ErrorHandler = func(e error) {
-        log.Println(e)
-    }
-    echo := []byte("Hello\x00 world")
-	echomsg, err := c.Echo(echo)
-	// ... error handling
-    log.Println(string(echomsg))
-    jobHandler := func(job *client.Job) {
-        log.Printf("%s", job.Data)
-    }
-    handle, err := c.Do("ToUpper", echo, client.JOB_NORMAL, jobHandler)
-	// ...	
+```go
+// ...
+c, err := client.New("tcp4", "127.0.0.1:4730")
+// ... error handling
+defer c.Close()
+c.ErrorHandler = func(e error) {
+	log.Println(e)
+}
+echo := []byte("Hello\x00 world")
+echomsg, err := c.Echo(echo)
+// ... error handling
+log.Println(string(echomsg))
+jobHandler := func(resp *client.Response) {
+	log.Printf("%s", resp.Data)
+}
+handle, err := c.Do("ToUpper", echo, client.JobNormal, jobHandler)
+// ...	
+```
 
 Branches
 ========
@@ -87,17 +92,29 @@ __Use at your own risk!__
 Contributors
 ============
 
+Great thanks to all of you for your support and interest!
+
 (_Alphabetic order_)
  
  * [Alex Zylman](https://github.com/azylman)
+ * [C.R. Kirkwood-Watts](https://github.com/kirkwood)
+ * [Damian Gryski](https://github.com/dgryski)
+ * [Gabriel Cristian Alecu](https://github.com/AzuraMeta)
+ * [Graham Barr](https://github.com/gbarr)
  * [Ingo Oeser](https://github.com/nightlyone)
  * [jake](https://github.com/jbaikge)
+ * [Joe Higton](https://github.com/draxil)
  * [Jonathan Wills](https://github.com/runningwild)
+ * [Kevin Darlington](https://github.com/kdar)
  * [miraclesu](https://github.com/miraclesu)
  * [Paul Mach](https://github.com/paulmach)
+ * [Randall McPherson](https://github.com/rlmcpherson)
  * [Sam Grimee](https://github.com/sgrimee)
- * suchj
- * [Xing Xing](http://mikespook.com) <mikespook@gmail.com> [@Twitter](http://twitter.com/mikespook)
+
+Maintainer
+==========
+
+ * [Xing Xing](http://mikespook.com) &lt;<mikespook@gmail.com>&gt; [@Twitter](http://twitter.com/mikespook)
 
 Open Source - MIT Software License
 ==================================

@@ -19,15 +19,15 @@ const (
 // It can connect to multi-server and grab jobs.
 type Worker struct {
 	sync.Mutex
-	agents       []*agent
-	funcs        jobFuncs
-	in           chan *inPack
-	running      bool
-	ready        bool
+	agents  []*agent
+	funcs   jobFuncs
+	in      chan *inPack
+	running bool
+	ready   bool
 	// The shuttingDown variable is protected by the Worker lock
 	shuttingDown bool
-        // Used during shutdown to wait for all active jobs to finish
-	activeJobs   sync.WaitGroup
+	// Used during shutdown to wait for all active jobs to finish
+	activeJobs sync.WaitGroup
 
 	Id           string
 	ErrorHandler ErrorHandler
@@ -99,6 +99,11 @@ func (worker *Worker) AddFunc(funcname string,
 
 // inner add
 func (worker *Worker) addFunc(funcname string, timeout uint32) {
+	outpack := prepFuncOutpack(funcname, timeout)
+	worker.broadcast(outpack)
+}
+
+func prepFuncOutpack(funcname string, timeout uint32) *outPack {
 	outpack := getOutPack()
 	if timeout == 0 {
 		outpack.dataType = dtCanDo
@@ -111,7 +116,7 @@ func (worker *Worker) addFunc(funcname string, timeout uint32) {
 		outpack.data[l] = '\x00'
 		binary.BigEndian.PutUint32(outpack.data[l+1:], timeout)
 	}
-	worker.broadcast(outpack)
+	return outpack
 }
 
 // Remove a function.
@@ -200,11 +205,6 @@ func (worker *Worker) Work() {
 		}
 	}
 
-	defer func() {
-		for _, a := range worker.agents {
-			a.Close()
-		}
-	}()
 	worker.running = true
 	for _, a := range worker.agents {
 		a.Grab()
@@ -227,8 +227,11 @@ func (worker *Worker) customeHandler(inpack *inPack) {
 // Close connection and exit main loop
 func (worker *Worker) Close() {
 	worker.Lock()
-	worker.Unlock()
+	defer worker.Unlock()
 	if worker.running == true {
+		for _, a := range worker.agents {
+			a.Close()
+		}
 		worker.running = false
 		close(worker.in)
 	}
@@ -323,9 +326,18 @@ func (worker *Worker) exec(inpack *inPack) (err error) {
 		}
 		outpack.handle = inpack.handle
 		outpack.data = r.data
-		inpack.a.write(outpack)
+		inpack.a.Write(outpack)
 	}
 	return
+}
+func (worker *Worker) reRegisterFuncsForAgent(a *agent) {
+	worker.Lock()
+	defer worker.Unlock()
+	for funcname, f := range worker.funcs {
+		outpack := prepFuncOutpack(funcname, f.timeout)
+		a.write(outpack)
+	}
+
 }
 
 // inner result
@@ -349,4 +361,24 @@ func execTimeout(f JobFunc, job Job, timeout time.Duration) (r *result) {
 		return &result{err: ErrTimeOut}
 	}
 	return r
+}
+
+// Error type passed when a worker connection disconnects
+type WorkerDisconnectError struct {
+	err   error
+	agent *agent
+}
+
+func (e *WorkerDisconnectError) Error() string {
+	return e.err.Error()
+}
+
+// Responds to the error by asking the worker to reconnect
+func (e *WorkerDisconnectError) Reconnect() (err error) {
+	return e.agent.reconnect()
+}
+
+// Which server was this for?
+func (e *WorkerDisconnectError) Server() (net string, addr string) {
+	return e.agent.net, e.agent.addr
 }
