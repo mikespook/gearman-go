@@ -1,6 +1,6 @@
 language: go
 go:
-  - 1.2
+  - 1.4
 
 before_install:
   - sudo apt-get remove -y gearman-job-server

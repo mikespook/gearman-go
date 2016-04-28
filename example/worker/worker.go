@@ -1,13 +1,14 @@
 package main
 
 import (
-	"github.com/mikespook/gearman-go/worker"
-	"github.com/mikespook/golib/signal"
 	"log"
+	"net"
 	"os"
 	"strings"
 	"time"
-	"net"
+
+	"github.com/mikespook/gearman-go/worker"
+	"github.com/mikespook/golib/signal"
 )
 
 func ToUpper(job worker.Job) ([]byte, error) {
@@ -41,7 +42,7 @@ func main() {
 	w.ErrorHandler = func(e error) {
 		log.Println(e)
 		if opErr, ok := e.(*net.OpError); ok {
-			if ! opErr.Temporary() {
+			if !opErr.Temporary() {
 				proc, err := os.FindProcess(os.Getpid())
 				if err != nil {
 					log.Println(err)
@@ -68,7 +69,6 @@ func main() {
 		return
 	}
 	go w.Work()
-	sh := signal.NewHandler()
-	sh.Bind(os.Interrupt, func() bool { return true })
-	sh.Loop()
+	signal.Bind(os.Interrupt, func() uint { return signal.BreakExit })
+	signal.Wait()
 }

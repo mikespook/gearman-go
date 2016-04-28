@@ -76,11 +76,19 @@ func decodeResponse(data []byte) (resp *Response, l int, err error) {
 	case dtJobCreated:
 		resp.Handle = string(dt)
 	case dtStatusRes, dtWorkData, dtWorkWarning, dtWorkStatus,
-		dtWorkComplete, dtWorkFail, dtWorkException:
+		dtWorkComplete, dtWorkException:
 		s := bytes.SplitN(dt, []byte{'\x00'}, 2)
 		if len(s) >= 2 {
 			resp.Handle = string(s[0])
 			resp.Data = s[1]
+		} else {
+			err = fmt.Errorf("Invalid data: %v", data)
+			return
+		}
+	case dtWorkFail:
+		s := bytes.SplitN(dt, []byte{'\x00'}, 2)
+		if len(s) >= 1 {
+			resp.Handle = string(s[0])
 		} else {
 			err = fmt.Errorf("Invalid data: %v", data)
 			return

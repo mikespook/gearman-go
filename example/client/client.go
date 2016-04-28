@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/mikespook/gearman-go/client"
 	"log"
-	"sync"
 	"os"
+	"sync"
 )
 
 func main() {
