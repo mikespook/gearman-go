@@ -18,16 +18,20 @@ const (
 // It can connect to multi-server and grab jobs.
 type Worker struct {
 	sync.Mutex
-	agents  []*agent
-	funcs   jobFuncs
-	in      chan *inPack
-	running bool
-	ready   bool
+	agents   []*agent
+	funcs    jobFuncs
+	in       chan *inPack
+	running  bool
+	ready    bool
+	disabled bool
+	once     sync.Once
 
 	Id           string
 	ErrorHandler ErrorHandler
 	JobHandler   JobHandler
 	limit        chan bool
+
+	runningJobs int
 }
 
 // Return a worker.
@@ -35,13 +39,14 @@ type Worker struct {
 // If limit is set to Unlimited(=0), the worker will grab all jobs
 // and execute them parallelly.
 // If limit is greater than zero, the number of paralled executing
-// jobs are limited under the number. If limit is assgined to
+// jobs are limited under the number. If limit is assigned to
 // OneByOne(=1), there will be only one job executed in a time.
 func New(limit int) (worker *Worker) {
 	worker = &Worker{
-		agents: make([]*agent, 0, limit),
-		funcs:  make(jobFuncs),
-		in:     make(chan *inPack, queueSize),
+		agents:      make([]*agent, 0, limit),
+		funcs:       make(jobFuncs),
+		in:          make(chan *inPack, queueSize),
+		runningJobs: 0,
 	}
 	if limit != Unlimited {
 		worker.limit = make(chan bool, limit-1)
@@ -58,7 +63,7 @@ func (worker *Worker) err(e error) {
 
 // Add a Gearman job server.
 //
-// addr should be formated as 'host:port'.
+// addr should be formatted as 'host:port'.
 func (worker *Worker) AddServer(net, addr string) (err error) {
 	// Create a new job server's client as a agent of server
 	a, err := newAgent(net, addr, worker)
@@ -159,7 +164,7 @@ func (worker *Worker) handleInPack(inpack *inPack) {
 	case dtEchoRes:
 		fallthrough
 	default:
-		worker.customeHandler(inpack)
+		worker.customHandler(inpack)
 	}
 }
 
@@ -177,9 +182,13 @@ func (worker *Worker) Ready() (err error) {
 			return
 		}
 	}
-	for funcname, f := range worker.funcs {
-		worker.addFunc(funcname, f.timeout)
-	}
+
+	// `once` protects registering worker functions multiple times.
+	worker.once.Do(func() {
+		for funcname, f := range worker.funcs {
+			worker.addFunc(funcname, f.timeout)
+		}
+	})
 	worker.ready = true
 	return
 }
@@ -205,8 +214,8 @@ func (worker *Worker) Work() {
 	}
 }
 
-// custome handling warper
-func (worker *Worker) customeHandler(inpack *inPack) {
+// custom handling wrapper
+func (worker *Worker) customHandler(inpack *inPack) {
 	if worker.JobHandler != nil {
 		if err := worker.JobHandler(inpack); err != nil {
 			worker.err(err)
@@ -225,6 +234,19 @@ func (worker *Worker) Close() {
 		worker.running = false
 		close(worker.in)
 	}
+}
+
+func (worker *Worker) Reconnect() error {
+	worker.Lock()
+	defer worker.Unlock()
+	if worker.running == true {
+		for _, a := range worker.agents {
+			if err := a.reconnect(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // Echo
@@ -266,11 +288,19 @@ func (worker *Worker) exec(inpack *inPack) (err error) {
 				err = ErrUnknown
 			}
 		}
+		if worker.runningJobs > 0 {
+			worker.Lock()
+			worker.runningJobs--
+			worker.Unlock()
+		}
 	}()
 	f, ok := worker.funcs[inpack.fn]
 	if !ok {
 		return fmt.Errorf("The function does not exist: %s", inpack.fn)
 	}
+	worker.Lock()
+	worker.runningJobs++
+	worker.Unlock()
 	var r *result
 	if f.timeout == 0 {
 		d, e := f.f(inpack)
@@ -304,6 +334,37 @@ func (worker *Worker) reRegisterFuncsForAgent(a *agent) {
 		a.write(outpack)
 	}
 
+}
+
+// Counts running jobs
+func (worker *Worker) Count() int {
+	worker.Lock()
+	defer worker.Unlock()
+
+	return worker.runningJobs
+}
+
+// Stops accepting new jobs
+func (worker *Worker) Disable() {
+	worker.Lock()
+	defer worker.Unlock()
+
+	worker.disabled = true
+}
+
+// Renewable disabled workers
+func (worker *Worker) Enable() {
+	worker.Lock()
+	defer worker.Unlock()
+
+	worker.disabled = false
+}
+
+func (worker *Worker) IsDisabled() bool {
+	worker.Lock()
+	defer worker.Unlock()
+
+	return worker.disabled
 }
 
 // inner result

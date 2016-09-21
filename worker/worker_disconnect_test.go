@@ -15,7 +15,7 @@ var gearman_ready chan bool
 var kill_gearman chan bool
 var bye chan bool
 
-func init() {
+func init2() {
 
 	if check_gearman_present() {
 		panic(`Something already listening on our testing port. Chickening out of testing with it!`)

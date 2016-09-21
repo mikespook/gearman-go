@@ -55,55 +55,57 @@ func (a *agent) work() {
 	var err error
 	var data, leftdata []byte
 	for {
-		if data, err = a.read(); err != nil {
-			if opErr, ok := err.(*net.OpError); ok {
-				if opErr.Temporary() {
-					continue
-				} else {
+		if !a.worker.IsDisabled() {
+			if data, err = a.read(); err != nil {
+				if opErr, ok := err.(*net.OpError); ok {
+					if opErr.Temporary() {
+						continue
+					} else {
+						a.disconnect_error(err)
+						// else - we're probably dc'ing due to a Close()
+
+						break
+					}
+
+				} else if err == io.EOF {
 					a.disconnect_error(err)
-					// else - we're probably dc'ing due to a Close()
-
 					break
 				}
-
-			} else if err == io.EOF {
-				a.disconnect_error(err)
-				break
-			}
-			a.worker.err(err)
-			// If it is unexpected error and the connection wasn't
-			// closed by Gearmand, the agent should close the conection
-			// and reconnect to job server.
-			a.Close()
-			a.conn, err = net.Dial(a.net, a.addr)
-			if err != nil {
 				a.worker.err(err)
-				break
+				// If it is unexpected error and the connection wasn't
+				// closed by Gearmand, the agent should close the conection
+				// and reconnect to job server.
+				a.Close()
+				a.conn, err = net.Dial(a.net, a.addr)
+				if err != nil {
+					a.worker.err(err)
+					break
+				}
+				a.rw = bufio.NewReadWriter(bufio.NewReader(a.conn),
+					bufio.NewWriter(a.conn))
 			}
-			a.rw = bufio.NewReadWriter(bufio.NewReader(a.conn),
-				bufio.NewWriter(a.conn))
-		}
-		if len(leftdata) > 0 { // some data left for processing
-			data = append(leftdata, data...)
-		}
-		if len(data) < minPacketLength { // not enough data
-			leftdata = data
-			continue
-		}
-		for {
-			if inpack, l, err = decodeInPack(data); err != nil {
-				a.worker.err(err)
+			if len(leftdata) > 0 { // some data left for processing
+				data = append(leftdata, data...)
+			}
+			if len(data) < minPacketLength { // not enough data
 				leftdata = data
-				break
-			} else {
-				leftdata = nil
-				inpack.a = a
-				a.worker.in <- inpack
-				if len(data) == l {
+				continue
+			}
+			for {
+				if inpack, l, err = decodeInPack(data); err != nil {
+					a.worker.err(err)
+					leftdata = data
 					break
-				}
-				if len(data) > l {
-					data = data[l:]
+				} else {
+					leftdata = nil
+					inpack.a = a
+					a.worker.in <- inpack
+					if len(data) == l {
+						break
+					}
+					if len(data) > l {
+						data = data[l:]
+					}
 				}
 			}
 		}
