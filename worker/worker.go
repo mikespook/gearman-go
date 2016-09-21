@@ -277,7 +277,14 @@ func (worker *Worker) SetId(id string) {
 
 // inner job executing
 func (worker *Worker) exec(inpack *inPack) (err error) {
+	jobRunned := false
 	defer func() {
+		// decrement job counter in completion of this job
+		worker.Lock()
+		if worker.runningJobs > 0 && jobRunned {
+			worker.runningJobs--
+		}
+		worker.Unlock()
 		if worker.limit != nil {
 			<-worker.limit
 		}
@@ -288,19 +295,17 @@ func (worker *Worker) exec(inpack *inPack) (err error) {
 				err = ErrUnknown
 			}
 		}
-		if worker.runningJobs > 0 {
-			worker.Lock()
-			worker.runningJobs--
-			worker.Unlock()
-		}
 	}()
 	f, ok := worker.funcs[inpack.fn]
 	if !ok {
 		return fmt.Errorf("The function does not exist: %s", inpack.fn)
 	}
+	jobRunned = true
+	// Job function found, function will be executing now, increment counter
 	worker.Lock()
 	worker.runningJobs++
 	worker.Unlock()
+
 	var r *result
 	if f.timeout == 0 {
 		d, e := f.f(inpack)
