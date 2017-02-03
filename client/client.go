@@ -220,6 +220,8 @@ func (client *Client) do(funcname string, data []byte,
 	if client.conn == nil {
 		return "", ErrLostConn
 	}
+	client.Lock()
+	defer client.Unlock()
 	var result = make(chan handleOrError, 1)
 	client.lastcall = "c"
 	client.innerHandler.put("c", func(resp *Response) {
