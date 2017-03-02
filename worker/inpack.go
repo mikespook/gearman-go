@@ -86,6 +86,8 @@ func (inpack *inPack) UpdateStatus(numerator, denominator int) {
 
 // Decode job from byte slice
 func decodeInPack(data []byte) (inpack *inPack, l int, err error) {
+	// The next three checks should be completely unnecessary, as they are checked in
+	// agent.work.
 	if len(data) < minPacketLength { // valid package should not less 12 bytes
 		err = fmt.Errorf("Invalid data: %v", data)
 		return
