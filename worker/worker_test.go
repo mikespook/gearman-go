@@ -5,6 +5,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"github.com/mikespook/gearman-go/client"
+	"fmt"
 )
 
 var worker *Worker
@@ -222,4 +224,99 @@ func TestWorkWithoutReadyWithPanic(t *testing.T) {
 	case <-done:
 	}
 
+}
+
+func TestDisableWorkersAndCountRunningJobs(t *testing.T) {
+	worker := New(Unlimited)
+	defer worker.Close()
+
+	if err := worker.AddServer(Network, "127.0.0.1:4730"); err != nil {
+		t.Error(err)
+	}
+	worker.Ready()
+
+	var wg sync.WaitGroup
+	handler := func(job Job) ([]byte, error) {
+		fmt.Println("running job")
+		time.Sleep(time.Second*20)
+		fmt.Println("done")
+		wg.Done()
+		return nil, nil
+	}
+
+	if err := worker.AddFunc("handler", handler, 0); err != nil {
+		wg.Done()
+		t.Error(err)
+	}
+	//worker.JobHandler = handler
+
+	worker.ErrorHandler = func(err error) {
+		t.Fatal("shouldn't have received an error")
+	}
+
+	if err := worker.Ready(); err != nil {
+		t.Error(err)
+		return
+	}
+	go worker.Work()
+
+	var cli *client.Client
+	var err error
+	if cli, err = client.New(client.Network, "127.0.0.1:4730"); err != nil {
+		t.Fatal(err)
+	}
+	cli.ErrorHandler = func(e error) {
+		t.Error(e)
+	}
+
+	worker.Disable()
+	if worker.IsDisabled() {
+		wg.Add(1)
+		_, err = cli.Do("handler", bytes.Repeat([]byte("a"), 50), client.JobHigh, func(res *client.Response) {
+		})
+		if err != nil {
+			t.Error(err)
+		}
+
+		wg.Add(1)
+		_, err = cli.Do("handler", bytes.Repeat([]byte("a"), 50), client.JobHigh, func(res *client.Response) {
+		})
+		if err != nil {
+			t.Error(err)
+		}
+
+		go func () {
+			for {
+				time.Sleep(time.Second*10)
+				if worker.Count() > 0 {
+					fmt.Println("worker enabled", worker.Count())
+					break;
+				} else {
+					fmt.Println("worker do not have any jobs")
+				}
+			}
+		}()
+
+		time.Sleep(time.Second*50)
+		wg.Add(1)
+		_, err = cli.Do("handler", bytes.Repeat([]byte("a"), 50), client.JobHigh, func(res *client.Response) {
+		})
+		if err != nil {
+			t.Error(err)
+		}
+
+		worker.Enable()
+		if !worker.IsDisabled() {
+			fmt.Println("worker is enabled")
+			time.Sleep(time.Second)
+			for i := 1; i < 10; i++ {
+				fmt.Println("Running Job", worker.Count())
+			}
+		} else {
+			t.Fatal("worker should enabled now")
+		}
+		wg.Wait()
+	} else {
+		t.Fatal("worker should disabled")
+	}
 }

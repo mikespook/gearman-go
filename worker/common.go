@@ -3,7 +3,7 @@ package worker
 const (
 	Network = "tcp"
 	// queue size
-	queueSize = 8
+	queueSize int = 8
 	// read buffer size
 	bufferSize = 1024
 	// min packet length
