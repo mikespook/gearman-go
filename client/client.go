@@ -221,6 +221,8 @@ func (client *Client) do(funcname string, data []byte,
 		return "", ErrLostConn
 	}
 	var result = make(chan handleOrError, 1)
+	client.Lock()
+	defer client.Unlock()
 	client.lastcall = "c"
 	client.innerHandler.put("c", func(resp *Response) {
 		if resp.DataType == dtError {
