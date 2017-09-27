@@ -53,5 +53,4 @@ func ExampleWorker() {
 	w.Echo([]byte("Hello"))
 	// Waiting results
 	wg.Wait()
-	// Output: Hello
 }
