@@ -9,6 +9,9 @@ var (
 )
 
 func TestPoolAdd(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	t.Log("Add servers")
 	c := 2
 	if err := pool.Add("tcp4", "127.0.0.1:4730", 1); err != nil {
@@ -24,6 +27,9 @@ func TestPoolAdd(t *testing.T) {
 }
 
 func TestPoolEcho(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	echo, err := pool.Echo("", []byte(TestStr))
 	if err != nil {
 		t.Error(err)
@@ -41,6 +47,9 @@ func TestPoolEcho(t *testing.T) {
 }
 
 func TestPoolDoBg(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	addr, handle, err := pool.DoBg("ToUpper",
 		[]byte("abcdef"), JobLow)
 	if err != nil {
@@ -55,6 +64,9 @@ func TestPoolDoBg(t *testing.T) {
 }
 
 func TestPoolDo(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	jobHandler := func(job *Response) {
 		str := string(job.Data)
 		if str == "ABCDEF" {
@@ -77,6 +89,9 @@ func TestPoolDo(t *testing.T) {
 }
 
 func TestPoolStatus(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	status, err := pool.Status("127.0.0.1:4730", "handle not exists")
 	if err != nil {
 		t.Error(err)
@@ -114,6 +129,9 @@ func TestPoolStatus(t *testing.T) {
 }
 
 func TestPoolClose(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	return
 	if err := pool.Close(); err != nil {
 		t.Error(err)

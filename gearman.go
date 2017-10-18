@@ -17,8 +17,3 @@ in an easy way.
 	import "github.com/mikespook/gearman-go/worker"
 */
 package gearman
-
-import (
-	_ "github.com/mikespook/gearman-go/client"
-	_ "github.com/mikespook/gearman-go/worker"
-)

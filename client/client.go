@@ -31,7 +31,7 @@ type Client struct {
 }
 
 type responseHandlerMap struct {
-	sync.RWMutex
+	sync.Mutex
 	holder map[string]ResponseHandler
 }
 
@@ -46,15 +46,20 @@ func (r *responseHandlerMap) remove(key string) {
 }
 
 func (r *responseHandlerMap) get(key string) (ResponseHandler, bool) {
-	r.RLock()
+	r.Lock()
 	rh, b := r.holder[key]
-	r.RUnlock()
+	r.Unlock()
 	return rh, b
 }
+
 func (r *responseHandlerMap) put(key string, rh ResponseHandler) {
 	r.Lock()
 	r.holder[key] = rh
 	r.Unlock()
+}
+
+func (r *responseHandlerMap) putNoLock(key string, rh ResponseHandler) {
+	r.holder[key] = rh
 }
 
 // Return a client.
@@ -266,9 +271,12 @@ func (client *Client) Do(funcname string, data []byte,
 	default:
 		datatype = dtSubmitJob
 	}
+
+	client.respHandler.Lock()
+	defer client.respHandler.Unlock()
 	handle, err = client.do(funcname, data, datatype)
 	if err == nil && h != nil {
-		client.respHandler.put(handle, h)
+		client.respHandler.putNoLock(handle, h)
 	}
 	return
 }

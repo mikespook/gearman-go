@@ -2,18 +2,35 @@ package worker
 
 import (
 	"bytes"
+	"flag"
+	"os"
 	"sync"
 	"testing"
 	"time"
 )
 
-var worker *Worker
+var (
+	worker              *Worker
+	runIntegrationTests bool
+)
 
 func init() {
 	worker = New(Unlimited)
 }
 
+func TestMain(m *testing.M) {
+	integrationsTestFlag := flag.Bool("integration", false, "Run the integration tests (in addition to the unit tests)")
+	if integrationsTestFlag != nil {
+		runIntegrationTests = *integrationsTestFlag
+	}
+	code := m.Run()
+	os.Exit(code)
+}
+
 func TestWorkerErrNoneAgents(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	err := worker.Ready()
 	if err != ErrNoneAgents {
 		t.Error("ErrNoneAgents expected.")
@@ -21,6 +38,9 @@ func TestWorkerErrNoneAgents(t *testing.T) {
 }
 
 func TestWorkerAddServer(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	t.Log("Add local server 127.0.0.1:4730.")
 	if err := worker.AddServer(Network, "127.0.0.1:4730"); err != nil {
 		t.Error(err)
@@ -33,6 +53,9 @@ func TestWorkerAddServer(t *testing.T) {
 }
 
 func TestWorkerErrNoneFuncs(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	err := worker.Ready()
 	if err != ErrNoneFuncs {
 		t.Error("ErrNoneFuncs expected.")
@@ -44,6 +67,9 @@ func foobar(job Job) ([]byte, error) {
 }
 
 func TestWorkerAddFunction(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	if err := worker.AddFunc("foobar", foobar, 0); err != nil {
 		t.Error(err)
 	}
@@ -57,12 +83,18 @@ func TestWorkerAddFunction(t *testing.T) {
 }
 
 func TestWorkerRemoveFunc(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	if err := worker.RemoveFunc("foobar"); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWork(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	var wg sync.WaitGroup
 	worker.JobHandler = func(job Job) error {
 		t.Logf("%s", job.Data())
@@ -80,6 +112,9 @@ func TestWork(t *testing.T) {
 }
 
 func TestLargeDataWork(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	worker := New(Unlimited)
 	defer worker.Close()
 
@@ -136,10 +171,16 @@ func TestLargeDataWork(t *testing.T) {
 }
 
 func TestWorkerClose(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	worker.Close()
 }
 
 func TestWorkWithoutReady(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	other_worker := New(Unlimited)
 
 	if err := other_worker.AddServer(Network, "127.0.0.1:4730"); err != nil {
@@ -193,6 +234,9 @@ func TestWorkWithoutReady(t *testing.T) {
 }
 
 func TestWorkWithoutReadyWithPanic(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	other_worker := New(Unlimited)
 
 	timeout := make(chan bool, 1)

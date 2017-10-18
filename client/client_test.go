@@ -1,6 +1,8 @@
 package client
 
 import (
+	"flag"
+	"os"
 	"testing"
 )
 
@@ -8,9 +10,24 @@ const (
 	TestStr = "Hello world"
 )
 
-var client *Client
+var (
+	client              *Client
+	runIntegrationTests bool
+)
+
+func TestMain(m *testing.M) {
+	integrationsTestFlag := flag.Bool("integration", false, "Run the integration tests (in addition to the unit tests)")
+	if integrationsTestFlag != nil {
+		runIntegrationTests = *integrationsTestFlag
+	}
+	code := m.Run()
+	os.Exit(code)
+}
 
 func TestClientAddServer(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	t.Log("Add local server 127.0.0.1:4730")
 	var err error
 	if client, err = New(Network, "127.0.0.1:4730"); err != nil {
@@ -22,6 +39,9 @@ func TestClientAddServer(t *testing.T) {
 }
 
 func TestClientEcho(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	echo, err := client.Echo([]byte(TestStr))
 	if err != nil {
 		t.Error(err)
@@ -34,6 +54,9 @@ func TestClientEcho(t *testing.T) {
 }
 
 func TestClientDoBg(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	handle, err := client.DoBg("ToUpper", []byte("abcdef"), JobLow)
 	if err != nil {
 		t.Error(err)
@@ -47,6 +70,9 @@ func TestClientDoBg(t *testing.T) {
 }
 
 func TestClientDo(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	jobHandler := func(job *Response) {
 		str := string(job.Data)
 		if str == "ABCDEF" {
@@ -70,6 +96,9 @@ func TestClientDo(t *testing.T) {
 }
 
 func TestClientStatus(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	status, err := client.Status("handle not exists")
 	if err != nil {
 		t.Error(err)
@@ -105,6 +134,9 @@ func TestClientStatus(t *testing.T) {
 }
 
 func TestClientClose(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
 	if err := client.Close(); err != nil {
 		t.Error(err)
 	}
