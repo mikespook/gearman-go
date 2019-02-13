@@ -3,10 +3,10 @@
 package worker
 
 import (
-	"encoding/binary"
 	"fmt"
 	"sync"
 	"time"
+	"strconv"
 )
 
 const (
@@ -106,10 +106,12 @@ func prepFuncOutpack(funcname string, timeout uint32) *outPack {
 	} else {
 		outpack.dataType = dtCanDoTimeout
 		l := len(funcname)
-		outpack.data = getBuffer(l + 5)
+
+		timeoutString := strconv.FormatUint(uint64(timeout), 10)
+		outpack.data = getBuffer(l + len(timeoutString) + 1)
 		copy(outpack.data, []byte(funcname))
 		outpack.data[l] = '\x00'
-		binary.BigEndian.PutUint32(outpack.data[l+1:], timeout)
+		copy(outpack.data[l+1:], []byte(timeoutString))
 	}
 	return outpack
 }
