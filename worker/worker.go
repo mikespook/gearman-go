@@ -30,7 +30,7 @@ type Worker struct {
 	limit        chan bool
 }
 
-// Return a worker.
+// New returns a worker.
 //
 // If limit is set to Unlimited(=0), the worker will grab all jobs
 // and execute them parallelly.
@@ -56,7 +56,7 @@ func (worker *Worker) err(e error) {
 	}
 }
 
-// Add a Gearman job server.
+// AddServer adds a Gearman job server.
 //
 // addr should be formated as 'host:port'.
 func (worker *Worker) AddServer(net, addr string) (err error) {
@@ -76,7 +76,7 @@ func (worker *Worker) broadcast(outpack *outPack) {
 	}
 }
 
-// Add a function.
+// AddFunc adds a function.
 // Set timeout as Unlimited(=0) to disable executing timeout.
 func (worker *Worker) AddFunc(funcname string,
 	f JobFunc, timeout uint32) (err error) {
@@ -116,7 +116,7 @@ func prepFuncOutpack(funcname string, timeout uint32) *outPack {
 	return outpack
 }
 
-// Remove a function.
+// RemoveFunc removes a function.
 func (worker *Worker) RemoveFunc(funcname string) (err error) {
 	worker.Lock()
 	defer worker.Unlock()
@@ -237,7 +237,7 @@ func (worker *Worker) Echo(data []byte) {
 	worker.broadcast(outpack)
 }
 
-// Remove all of functions.
+// Reset removes all of functions.
 // Both from the worker and job servers.
 func (worker *Worker) Reset() {
 	outpack := getOutPack()
