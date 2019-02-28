@@ -57,7 +57,7 @@ type Pool struct {
 	mutex sync.Mutex
 }
 
-// Return a new pool.
+// NewPool returns a new pool.
 func NewPool() (pool *Pool) {
 	return &Pool{
 		Clients:          make(map[string]*PoolClient, poolSize),
@@ -111,7 +111,7 @@ func (pool *Pool) DoBg(funcname string, data []byte,
 	return
 }
 
-// Get job status from job server.
+// Status gets job status from job server.
 // !!!Not fully tested.!!!
 func (pool *Pool) Status(addr, handle string) (status *Status, err error) {
 	if client, ok := pool.Clients[addr]; ok {

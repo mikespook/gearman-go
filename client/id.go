@@ -32,7 +32,7 @@ func (ai *autoincId) Id() string {
 	return strconv.FormatInt(next, 10)
 }
 
-// Return an autoincrement ID generator
+// NewAutoIncId returns an autoincrement ID generator
 func NewAutoIncId() IdGenerator {
 	// we'll consider the nano fraction of a second at startup unique
 	// and count up from there.

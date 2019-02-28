@@ -62,7 +62,7 @@ func (r *responseHandlerMap) putNoLock(key string, rh ResponseHandler) {
 	r.holder[key] = rh
 }
 
-// Return a client.
+// New returns a client.
 func New(network, addr string) (client *Client, err error) {
 	client = &Client{
 		net:             network,
@@ -293,7 +293,7 @@ func (client *Client) DoBg(funcname string, data []byte,
 	return
 }
 
-// Get job status from job server.
+// Status gets job status from job server.
 func (client *Client) Status(handle string) (status *Status, err error) {
 	if client.conn == nil {
 		return nil, ErrLostConn
