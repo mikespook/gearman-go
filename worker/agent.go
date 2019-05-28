@@ -111,7 +111,7 @@ func (a *agent) work() {
 }
 
 func (a *agent) disconnect_error(err error) {
-	a.Unlock()
+	a.Lock()
 	defer a.Unlock()
 
 	if a.conn != nil {
