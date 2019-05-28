@@ -72,7 +72,7 @@ func (worker *Worker) AddServer(net, addr string) (err error) {
 // Broadcast an outpack to all Gearman server.
 func (worker *Worker) broadcast(outpack *outPack) {
 	for _, v := range worker.agents {
-		v.write(outpack)
+		v.Write(outpack)
 	}
 }
 
