@@ -4,9 +4,9 @@ package worker
 
 import (
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
-	"strconv"
 )
 
 const (
@@ -72,7 +72,7 @@ func (worker *Worker) AddServer(net, addr string) (err error) {
 // Broadcast an outpack to all Gearman server.
 func (worker *Worker) broadcast(outpack *outPack) {
 	for _, v := range worker.agents {
-		v.write(outpack)
+		v.Write(outpack)
 	}
 }
 
@@ -186,7 +186,7 @@ func (worker *Worker) Ready() (err error) {
 	return
 }
 
-// Main loop, block here
+// Work start main loop (blocking)
 // Most of time, this should be evaluated in goroutine.
 func (worker *Worker) Work() {
 	if !worker.ready {
@@ -197,7 +197,10 @@ func (worker *Worker) Work() {
 		}
 	}
 
+	worker.Lock()
 	worker.running = true
+	worker.Unlock()
+
 	for _, a := range worker.agents {
 		a.Grab()
 	}
