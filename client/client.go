@@ -323,6 +323,11 @@ func (client *Client) Echo(data []byte) (echo []byte, err error) {
 	}
 	var mutex sync.Mutex
 	mutex.Lock()
+
+	// Lock the client as only one echo may run parallel
+	client.Lock()
+	defer client.Unlock()
+	
 	client.innerHandler.put("e", func(resp *Response) {
 		echo = resp.Data
 		mutex.Unlock()
