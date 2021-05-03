@@ -1,9 +1,11 @@
 package client
 
 import (
+	"errors"
 	"flag"
 	"os"
 	"testing"
+	"time"
 )
 
 const (
@@ -17,6 +19,7 @@ var (
 
 func TestMain(m *testing.M) {
 	integrationsTestFlag := flag.Bool("integration", false, "Run the integration tests (in addition to the unit tests)")
+	flag.Parse()
 	if integrationsTestFlag != nil {
 		runIntegrationTests = *integrationsTestFlag
 	}
@@ -92,6 +95,66 @@ func TestClientDo(t *testing.T) {
 		t.Error("Handle is empty.")
 	} else {
 		t.Log(handle)
+	}
+}
+
+func TestClientMultiDo(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
+
+	// This integration test requires that examples/pl/worker_multi.pl be running.
+	//
+	// Test invocation is:
+	//    go test -integration -timeout 10s -run '^TestClient(AddServer|MultiDo)$'
+	//
+	// Send 1000 requests to go through all race conditions
+	const nreqs = 1000
+	errCh := make(chan error)
+	gotCh := make(chan string, nreqs)
+
+	olderrh := client.ErrorHandler
+	client.ErrorHandler = func(e error) { errCh <- e }
+	client.ResponseTimeout = 5 * time.Second
+	defer func() { client.ErrorHandler = olderrh }()
+
+	nextJobCh := make(chan struct{})
+	defer close(nextJobCh)
+	go func() {
+		for range nextJobCh {
+			start := time.Now()
+			handle, err := client.Do("PerlToUpper", []byte("abcdef"), JobNormal, func(r *Response) { gotCh <- string(r.Data) })
+			if err == ErrLostConn && time.Since(start) > client.ResponseTimeout {
+				errCh <- errors.New("Impossible 'lost conn', deadlock bug detected")
+			} else if err != nil {
+				errCh <- err
+			}
+			if handle == "" {
+				errCh <- errors.New("Handle is empty.")
+			}
+		}
+	}()
+
+	for i := 0; i < nreqs; i++ {
+		select {
+		case err := <-errCh:
+			t.Fatal(err)
+		case nextJobCh <- struct{}{}:
+		}
+	}
+
+	remaining := nreqs
+	for remaining > 0 {
+		select {
+		case err := <-errCh:
+			t.Fatal(err)
+		case got := <-gotCh:
+			if got != "ABCDEF" {
+				t.Error("Unexpected response from PerlDoUpper: ", got)
+			}
+			remaining--
+			t.Logf("%d response remaining", remaining)
+		}
 	}
 }
 

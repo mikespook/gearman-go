@@ -19,7 +19,6 @@ type Client struct {
 	sync.Mutex
 
 	net, addr    string
-	respHandler  *responseHandlerMap
 	innerHandler *responseHandlerMap
 	in           chan *Response
 	conn         net.Conn
@@ -32,11 +31,16 @@ type Client struct {
 
 type responseHandlerMap struct {
 	sync.Mutex
-	holder map[string]ResponseHandler
+	holder map[string]handledResponse
+}
+
+type handledResponse struct {
+	internal ResponseHandler // internal handler, always non-nil
+	external ResponseHandler // handler passed in from (*Client).Do, sometimes nil
 }
 
 func newResponseHandlerMap() *responseHandlerMap {
-	return &responseHandlerMap{holder: make(map[string]ResponseHandler, queueSize)}
+	return &responseHandlerMap{holder: make(map[string]handledResponse, queueSize)}
 }
 
 func (r *responseHandlerMap) remove(key string) {
@@ -45,21 +49,22 @@ func (r *responseHandlerMap) remove(key string) {
 	r.Unlock()
 }
 
-func (r *responseHandlerMap) get(key string) (ResponseHandler, bool) {
+func (r *responseHandlerMap) getAndRemove(key string) (handledResponse, bool) {
 	r.Lock()
 	rh, b := r.holder[key]
+	delete(r.holder, key)
 	r.Unlock()
 	return rh, b
 }
 
-func (r *responseHandlerMap) put(key string, rh ResponseHandler) {
+func (r *responseHandlerMap) putWithExternalHandler(key string, internal, external ResponseHandler) {
 	r.Lock()
-	r.holder[key] = rh
+	r.holder[key] = handledResponse{internal: internal, external: external}
 	r.Unlock()
 }
 
-func (r *responseHandlerMap) putNoLock(key string, rh ResponseHandler) {
-	r.holder[key] = rh
+func (r *responseHandlerMap) put(key string, rh ResponseHandler) {
+	r.putWithExternalHandler(key, rh, nil)
 }
 
 // New returns a client.
@@ -67,7 +72,6 @@ func New(network, addr string) (client *Client, err error) {
 	client = &Client{
 		net:             network,
 		addr:            addr,
-		respHandler:     newResponseHandlerMap(),
 		innerHandler:    newResponseHandlerMap(),
 		in:              make(chan *Response, queueSize),
 		ResponseTimeout: DefaultTimeout,
@@ -168,21 +172,26 @@ ReadLoop:
 }
 
 func (client *Client) processLoop() {
+	rhandlers := map[string]ResponseHandler{}
 	for resp := range client.in {
 		switch resp.DataType {
 		case dtError:
 			client.err(getError(resp.Data))
 		case dtStatusRes:
-			resp = client.handleInner("s"+resp.Handle, resp)
+			client.handleInner("s"+resp.Handle, resp, nil)
 		case dtJobCreated:
-			resp = client.handleInner("c", resp)
+			client.handleInner("c", resp, rhandlers)
 		case dtEchoRes:
-			resp = client.handleInner("e", resp)
+			client.handleInner("e", resp, nil)
 		case dtWorkData, dtWorkWarning, dtWorkStatus:
-			resp = client.handleResponse(resp.Handle, resp)
+			if cb := rhandlers[resp.Handle]; cb != nil {
+				cb(resp)
+			}
 		case dtWorkComplete, dtWorkFail, dtWorkException:
-			client.handleResponse(resp.Handle, resp)
-			client.respHandler.remove(resp.Handle)
+			if cb := rhandlers[resp.Handle]; cb != nil {
+				cb(resp)
+				delete(rhandlers, resp.Handle)
+			}
 		}
 	}
 }
@@ -193,21 +202,13 @@ func (client *Client) err(e error) {
 	}
 }
 
-func (client *Client) handleResponse(key string, resp *Response) *Response {
-	if h, ok := client.respHandler.get(key); ok {
-		h(resp)
-		return nil
+func (client *Client) handleInner(key string, resp *Response, rhandlers map[string]ResponseHandler) {
+	if h, ok := client.innerHandler.getAndRemove(key); ok {
+		if h.external != nil && resp.Handle != "" {
+			rhandlers[resp.Handle] = h.external
+		}
+		h.internal(resp)
 	}
-	return resp
-}
-
-func (client *Client) handleInner(key string, resp *Response) *Response {
-	if h, ok := client.innerHandler.get(key); ok {
-		h(resp)
-		client.innerHandler.remove(key)
-		return nil
-	}
-	return resp
 }
 
 type handleOrError struct {
@@ -216,14 +217,14 @@ type handleOrError struct {
 }
 
 func (client *Client) do(funcname string, data []byte,
-	flag uint32) (handle string, err error) {
+	flag uint32, h ResponseHandler) (handle string, err error) {
 	if client.conn == nil {
 		return "", ErrLostConn
 	}
 	var result = make(chan handleOrError, 1)
 	client.Lock()
 	defer client.Unlock()
-	client.innerHandler.put("c", func(resp *Response) {
+	client.innerHandler.putWithExternalHandler("c", func(resp *Response) {
 		if resp.DataType == dtError {
 			err = getError(resp.Data)
 			result <- handleOrError{"", err}
@@ -231,7 +232,7 @@ func (client *Client) do(funcname string, data []byte,
 		}
 		handle = resp.Handle
 		result <- handleOrError{handle, nil}
-	})
+	}, h)
 	id := IdGen.Id()
 	req := getJob(id, []byte(funcname), data)
 	req.DataType = flag
@@ -264,12 +265,7 @@ func (client *Client) Do(funcname string, data []byte,
 		datatype = dtSubmitJob
 	}
 
-	client.respHandler.Lock()
-	defer client.respHandler.Unlock()
-	handle, err = client.do(funcname, data, datatype)
-	if err == nil && h != nil {
-		client.respHandler.putNoLock(handle, h)
-	}
+	handle, err = client.do(funcname, data, datatype, h)
 	return
 }
 
@@ -289,7 +285,7 @@ func (client *Client) DoBg(funcname string, data []byte,
 	default:
 		datatype = dtSubmitJobBg
 	}
-	handle, err = client.do(funcname, data, datatype)
+	handle, err = client.do(funcname, data, datatype, nil)
 	return
 }
 
