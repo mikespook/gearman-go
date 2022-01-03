@@ -219,6 +219,15 @@ func (worker *Worker) customeHandler(inpack *inPack) {
 	}
 }
 
+// Stop serving
+func (worker *Worker) Stop() {
+	worker.Lock()
+	defer worker.Unlock()
+	if worker.running == true {
+		close(worker.in)
+	}
+}
+
 // Close connection and exit main loop
 func (worker *Worker) Close() {
 	worker.Lock()
