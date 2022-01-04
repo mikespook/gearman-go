@@ -55,6 +55,10 @@ func (a *agent) work() {
 	var err error
 	var data, leftdata []byte
 	for {
+		if a.worker.stopped {
+			return
+		}
+
 		if data, err = a.read(); err != nil {
 			if opErr, ok := err.(*net.OpError); ok {
 				if opErr.Temporary() {
@@ -91,6 +95,10 @@ func (a *agent) work() {
 			continue
 		}
 		for {
+			if a.worker.stopped {
+				return
+			}
+
 			if inpack, l, err = decodeInPack(data); err != nil {
 				a.worker.err(err)
 				leftdata = data
