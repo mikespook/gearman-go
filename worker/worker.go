@@ -231,7 +231,9 @@ func (worker *Worker) Stop() {
 // Wait for completeness serving
 func (worker *Worker) WaitRunning() {
 	// Wait for all the running activities has stopped
-	worker.active.Wait()
+	if worker.stopped {
+		worker.active.Wait()
+	}
 }
 
 // Close connection and exit main loop
