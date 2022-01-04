@@ -226,7 +226,10 @@ func (worker *Worker) customeHandler(inpack *inPack) {
 func (worker *Worker) Stop() {
 	// Set stopped flag
 	worker.stopped = true
+}
 
+// Wait for completeness serving
+func (worker *Worker) WaitRunning() {
 	// Wait for all the running activities has stopped
 	worker.active.Wait()
 }
