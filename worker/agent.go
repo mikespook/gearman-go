@@ -95,10 +95,6 @@ func (a *agent) work() {
 			continue
 		}
 		for {
-			if a.worker.stopped {
-				return
-			}
-
 			if inpack, l, err = decodeInPack(data); err != nil {
 				a.worker.err(err)
 				leftdata = data
