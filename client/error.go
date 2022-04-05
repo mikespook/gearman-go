@@ -9,6 +9,7 @@ import (
 var (
 	ErrWorkWarning   = errors.New("Work warning")
 	ErrInvalidData   = errors.New("Invalid data")
+	ErrInvalidId     = errors.New("Invalid ID")
 	ErrWorkFail      = errors.New("Work fail")
 	ErrWorkException = errors.New("Work exeption")
 	ErrDataType      = errors.New("Invalid data type")
