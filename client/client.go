@@ -217,7 +217,10 @@ type handleOrError struct {
 }
 
 func (client *Client) do(funcname string, data []byte,
-	flag uint32, h ResponseHandler) (handle string, err error) {
+	flag uint32, h ResponseHandler, id string) (handle string, err error) {
+	if len(id) == 0 {
+		return "", ErrInvalidId
+	}
 	if client.conn == nil {
 		return "", ErrLostConn
 	}
@@ -233,7 +236,6 @@ func (client *Client) do(funcname string, data []byte,
 		handle = resp.Handle
 		result <- handleOrError{handle, nil}
 	}, h)
-	id := IdGen.Id()
 	req := getJob(id, []byte(funcname), data)
 	req.DataType = flag
 	if err = client.write(req); err != nil {
@@ -255,17 +257,7 @@ func (client *Client) do(funcname string, data []byte,
 // flag can be set to: JobLow, JobNormal and JobHigh
 func (client *Client) Do(funcname string, data []byte,
 	flag byte, h ResponseHandler) (handle string, err error) {
-	var datatype uint32
-	switch flag {
-	case JobLow:
-		datatype = dtSubmitJobLow
-	case JobHigh:
-		datatype = dtSubmitJobHigh
-	default:
-		datatype = dtSubmitJob
-	}
-
-	handle, err = client.do(funcname, data, datatype, h)
+	handle, err = client.DoWithId(funcname, data, flag, h, IdGen.Id())
 	return
 }
 
@@ -273,19 +265,7 @@ func (client *Client) Do(funcname string, data []byte,
 // flag can be set to: JobLow, JobNormal and JobHigh
 func (client *Client) DoBg(funcname string, data []byte,
 	flag byte) (handle string, err error) {
-	if client.conn == nil {
-		return "", ErrLostConn
-	}
-	var datatype uint32
-	switch flag {
-	case JobLow:
-		datatype = dtSubmitJobLowBg
-	case JobHigh:
-		datatype = dtSubmitJobHighBg
-	default:
-		datatype = dtSubmitJobBg
-	}
-	handle, err = client.do(funcname, data, datatype, nil)
+	handle, err = client.DoBgWithId(funcname, data, flag, IdGen.Id())
 	return
 }
 
@@ -339,5 +319,42 @@ func (client *Client) Close() (err error) {
 		err = client.conn.Close()
 		client.conn = nil
 	}
+	return
+}
+
+// Call the function and get a response.
+// flag can be set to: JobLow, JobNormal and JobHigh
+func (client *Client) DoWithId(funcname string, data []byte,
+	flag byte, h ResponseHandler, id string) (handle string, err error) {
+	var datatype uint32
+	switch flag {
+	case JobLow:
+		datatype = dtSubmitJobLow
+	case JobHigh:
+		datatype = dtSubmitJobHigh
+	default:
+		datatype = dtSubmitJob
+	}
+	handle, err = client.do(funcname, data, datatype, h, id)
+	return
+}
+
+// Call the function in background, no response needed.
+// flag can be set to: JobLow, JobNormal and JobHigh
+func (client *Client) DoBgWithId(funcname string, data []byte,
+	flag byte, id string) (handle string, err error) {
+	if client.conn == nil {
+		return "", ErrLostConn
+	}
+	var datatype uint32
+	switch flag {
+	case JobLow:
+		datatype = dtSubmitJobLowBg
+	case JobHigh:
+		datatype = dtSubmitJobHighBg
+	default:
+		datatype = dtSubmitJobBg
+	}
+	handle, err = client.do(funcname, data, datatype, nil, id)
 	return
 }

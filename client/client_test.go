@@ -1,8 +1,11 @@
 package client
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -72,6 +75,42 @@ func TestClientDoBg(t *testing.T) {
 	}
 }
 
+func TestClientDoBgWithId(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
+	data := []byte("abcdef")
+	hash := md5.Sum(data)
+	id := hex.EncodeToString(hash[:])
+	handle, err := client.DoBgWithId("ToUpper", data, JobLow, id)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if handle == "" {
+		t.Error("Handle is empty.")
+	} else {
+		t.Log(handle)
+	}
+}
+
+func TestClientDoBgWithIdFailsIfNoId(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
+	data := []byte("abcdef")
+	id := ""
+	_, err := client.DoBgWithId("ToUpper", data, JobLow, id)
+	if err == nil {
+		t.Error("Expecting error")
+		return
+	}
+	if err.Error() != "Invalid ID" {
+		t.Error(fmt.Sprintf("Expecting \"Invalid ID\" error, got %s.", err.Error()))
+		return
+	}
+}
+
 func TestClientDo(t *testing.T) {
 	if !runIntegrationTests {
 		t.Skip("To run this test, use: go test -integration")
@@ -95,6 +134,138 @@ func TestClientDo(t *testing.T) {
 		t.Error("Handle is empty.")
 	} else {
 		t.Log(handle)
+	}
+}
+
+func TestClientDoWithId(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
+	jobHandler := func(job *Response) {
+		str := string(job.Data)
+		if str == "ABCDEF" {
+			t.Log(str)
+		} else {
+			t.Errorf("Invalid data: %s", job.Data)
+		}
+		return
+	}
+	data := []byte("abcdef")
+	hash := md5.Sum(data)
+	id := hex.EncodeToString(hash[:])
+	handle, err := client.DoWithId("ToUpper", data,
+		JobLow, jobHandler, id)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if handle == "" {
+		t.Error("Handle is empty.")
+	} else {
+		t.Log(handle)
+	}
+}
+
+func TestClientDoWithIdFailsIfNoId(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
+	jobHandler := func(job *Response) {
+		str := string(job.Data)
+		if str == "ABCDEF" {
+			t.Log(str)
+		} else {
+			t.Errorf("Invalid data: %s", job.Data)
+		}
+		return
+	}
+	data := []byte("abcdef")
+	id := ""
+	_, err := client.DoWithId("ToUpper", data,
+		JobLow, jobHandler, id)
+	if err == nil {
+		t.Error("Expecting error")
+		return
+	}
+	if err.Error() != "Invalid ID" {
+		t.Error(fmt.Sprintf("Expecting \"Invalid ID\" error, got %s.", err.Error()))
+		return
+	}
+}
+
+func TestClientDoWithIdCheckSameHandle(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
+	jobHandler := func(job *Response) {
+		return
+	}
+	data := []byte("{productId:123,categoryId:1}")
+	id := "123"
+	handle1, err := client.DoWithId("PublishProduct", data,
+		JobLow, jobHandler, id)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if handle1 == "" {
+		t.Error("Handle is empty.")
+	} else {
+		t.Log(handle1)
+	}
+
+	handle2, err := client.DoWithId("PublishProduct", data,
+		JobLow, jobHandler, id)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if handle2 == "" {
+		t.Error("Handle is empty.")
+	} else {
+		t.Log(handle2)
+	}
+
+	if handle1 != handle2 {
+		t.Error("expecting the same handle when using the same id on the same Job name")
+	}
+}
+
+func TestClientDoWithIdCheckDifferentHandleOnDifferentJobs(t *testing.T) {
+	if !runIntegrationTests {
+		t.Skip("To run this test, use: go test -integration")
+	}
+	jobHandler := func(job *Response) {
+		return
+	}
+	data := []byte("{productId:123}")
+	id := "123"
+	handle1, err := client.DoWithId("PublishProduct", data,
+		JobLow, jobHandler, id)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if handle1 == "" {
+		t.Error("Handle is empty.")
+	} else {
+		t.Log(handle1)
+	}
+
+	handle2, err := client.DoWithId("DeleteProduct", data,
+		JobLow, jobHandler, id)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if handle2 == "" {
+		t.Error("Handle is empty.")
+	} else {
+		t.Log(handle2)
+	}
+
+	if handle1 == handle2 {
+		t.Error("expecting different handles because there are different job names")
 	}
 }
 
