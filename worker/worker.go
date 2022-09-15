@@ -22,7 +22,9 @@ type Worker struct {
 	funcs   jobFuncs
 	in      chan *inPack
 	running bool
+	stopped bool
 	ready   bool
+	active  sync.WaitGroup
 
 	Id           string
 	ErrorHandler ErrorHandler
@@ -39,9 +41,10 @@ type Worker struct {
 // OneByOne(=1), there will be only one job executed in a time.
 func New(limit int) (worker *Worker) {
 	worker = &Worker{
-		agents: make([]*agent, 0, limit),
-		funcs:  make(jobFuncs),
-		in:     make(chan *inPack, queueSize),
+		agents:  make([]*agent, 0, limit),
+		funcs:   make(jobFuncs),
+		in:      make(chan *inPack, queueSize),
+		stopped: false,
 	}
 	if limit != Unlimited {
 		worker.limit = make(chan bool, limit-1)
@@ -219,6 +222,20 @@ func (worker *Worker) customeHandler(inpack *inPack) {
 	}
 }
 
+// Stop serving
+func (worker *Worker) Stop() {
+	// Set stopped flag
+	worker.stopped = true
+}
+
+// Wait for completeness serving
+func (worker *Worker) WaitRunning() {
+	// Wait for all the running activities has stopped
+	if worker.stopped {
+		worker.active.Wait()
+	}
+}
+
 // Close connection and exit main loop
 func (worker *Worker) Close() {
 	worker.Lock()
@@ -261,6 +278,8 @@ func (worker *Worker) SetId(id string) {
 // inner job executing
 func (worker *Worker) exec(inpack *inPack) (err error) {
 	defer func() {
+		worker.active.Done()
+
 		if worker.limit != nil {
 			<-worker.limit
 		}
@@ -276,6 +295,9 @@ func (worker *Worker) exec(inpack *inPack) (err error) {
 	if !ok {
 		return fmt.Errorf("The function does not exist: %s", inpack.fn)
 	}
+
+	worker.active.Add(1)
+
 	var r *result
 	if f.timeout == 0 {
 		d, e := f.f(inpack)
