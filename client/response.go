@@ -65,19 +65,15 @@ func (resp *Response) Update() (data []byte, err error) {
 func decodeResponse(data []byte) (resp *Response, l int, err error) {
 	a := len(data)
 	if a < minPacketLength { // valid package should not less 12 bytes
-		err = fmt.Errorf("Invalid data: %v", data)
+		err = errIncompletePacket
 		return
 	}
 	dl := int(binary.BigEndian.Uint32(data[8:12]))
 	if a < minPacketLength+dl {
-		err = fmt.Errorf("Invalid data: %v", data)
+		err = errIncompletePacket
 		return
 	}
 	dt := data[minPacketLength : dl+minPacketLength]
-	if len(dt) != int(dl) { // length not equal
-		err = fmt.Errorf("Invalid data: %v", data)
-		return
-	}
 	resp = getResponse()
 	resp.DataType = binary.BigEndian.Uint32(data[4:8])
 	switch resp.DataType {

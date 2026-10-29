@@ -20,6 +20,12 @@ var (
 	ErrWorkException = errors.New("Work exeption")
 	ErrDataType      = errors.New("Invalid data type")
 	ErrLostConn      = errors.New("Lost connection with Gearmand")
+
+	// errIncompletePacket tells readLoop to read more before decoding again.
+	// It carries no data on purpose: readLoop hits it after every read of a
+	// large packet, so building it from the buffer costs time quadratic in
+	// the packet size.
+	errIncompletePacket = errors.New("Incomplete packet")
 )
 
 // Extract the error message
